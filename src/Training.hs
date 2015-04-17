@@ -4,6 +4,7 @@ import Data.List
 import Data.Function
 import Types
 import Inputs
+import Networks
 
 pairInputs :: PairFunction -> TrainingSet -> PairedInputs
 pairInputs f is = let [xs, ys] = groupInputs is
@@ -34,3 +35,5 @@ distanceBased xs ys = map (sortBy distanceCompare) $ pairLists xs ys
       -- Could be written more cleanly. Also, due to the way pairLists is defined, the first element of both tuples will be identical
       distanceCompare :: (TrainingInput, TrainingInput) -> (TrainingInput, TrainingInput) -> Ordering
       distanceCompare (x, y1) (_, y2) = distance (fst x) (fst y1) `compare` distance (fst x) (fst y2)
+
+

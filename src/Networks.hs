@@ -29,6 +29,19 @@ n1 `intersect` n2 = \xs -> sign $ (n1 xs) + (n2 xs) - 0.5
 union :: Network -> Network -> Network
 n1 `union` n2 = \xs -> sign $ (n1 xs) + (n2 xs) + 0.5
 
+-- A separating hyperplane
+-- u is assumed to be classed as -1, v as +1 and c is a parameter used to determine
+-- where the hyperplane should be positioned between the two
+sep :: Input -> Input -> Double -> Input -> Double
+sep u v c = \x -> (x <.> w) - l
+    where
+      squaredNorm = sum . map (^2)
+      a <.> b = sum $ zipWith (*) a b
+      w = zipWith (-) v u
+      l = c * (squaredNorm w) - (squaredNorm u) + (u <.> v)
 
-
+-- A basic separating perceptron
+-- The "spacing value" of c = 0.5 is hardcoded for this version
+perc :: Input -> Input -> Network
+perc plusOne minusOne = sign . sep minusOne plusOne 0.5
 
