@@ -18,16 +18,16 @@ sign = signum
 -- The following network combinations, for now, assume sign as the activation function
 
 -- Complement
-complement :: Network -> Network
-complement n = negate . n
+complementNet :: Network -> Network
+complementNet n = negate . n
 
 -- Intersection
-intersect :: Network -> Network -> Network
-n1 `intersect` n2 = \xs -> sign $ (n1 xs) + (n2 xs) - 0.5
+intersectNet :: Network -> Network -> Network
+n1 `intersectNet` n2 = \xs -> sign $ (n1 xs) + (n2 xs) - 0.5
 
 -- Union
-union :: Network -> Network -> Network
-n1 `union` n2 = \xs -> sign $ (n1 xs) + (n2 xs) + 0.5
+unionNet :: Network -> Network -> Network
+n1 `unionNet` n2 = \xs -> sign $ (n1 xs) + (n2 xs) + 0.5
 
 -- A separating hyperplane
 -- u is assumed to be classed as -1, v as +1 and c is a parameter used to determine

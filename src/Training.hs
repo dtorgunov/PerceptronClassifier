@@ -37,3 +37,48 @@ distanceBased xs ys = map (sortBy distanceCompare) $ pairLists xs ys
       distanceCompare (x, y1) (_, y2) = distance (fst x) (fst y1) `compare` distance (fst x) (fst y2)
 
 
+{-
+  The following is a very basic training algorithm. 
+  It can be further refined by taking into account the data from the networks previously
+  created, tweaking certain parameters, and so on. Those refinements are subject to later
+  development.
+-}
+
+-- Since we construct a network for each +1 point in turn, we restructure the originally paired training sets in a more managable fashion
+-- I.e. a tuple, where the first element is the positive point, and the second element is
+-- a list of the corresponding negative points
+simplify :: [(TrainingInput, TrainingInput)] -> (TrainingInput, [TrainingInput])
+simplify ps@((x,_):_) = (x, map snd ps)
+
+-- Given a network and a set of points, only leave the points which are not classified by the network correctly
+seave :: Network -> (TrainingInput, [TrainingInput]) -> (TrainingInput, [TrainingInput])
+seave net (x,ys) = (x, filter misclassified ys)
+    where
+      misclassified :: TrainingInput -> Bool
+      misclassified (point, c) = (net point) /= c
+
+-- Given a network and a list of points misclassified by it add a new perceptron to
+-- classify the first point, and then filter out the points now classified correctly before
+-- recursing, eventually yielding a network that classified all points correctly
+augmentNetwork :: Network -> (TrainingInput, [TrainingInput]) -> Network
+augmentNetwork net (x, []) = net
+augmentNetwork net (x, (y:ys)) = augmentNetwork newNet (seave newNet (x, ys))
+    where
+      newNet = net `intersectNet` (perc (fst x) (fst y))
+
+-- A starting point for the recursion above
+createPlusNet :: [(TrainingInput, TrainingInput)] -> Network
+createPlusNet tis = augmentNetwork net (seave net simplifiedTis)
+    where
+      simplifiedTis = simplify tis
+      net = perc (fst $ fst simplifiedTis) (fst $ head $ snd simplifiedTis)
+
+-- From a list of networks for each +1 point, create a network that classifies all of them correctly
+unifyNetwork :: [Network] -> Network
+unifyNetwork (net:nets) = foldr unionNet net nets
+
+-- Create a network, given a training set
+createNetwork :: TrainingSet -> Network
+createNetwork ts = unifyNetwork $ map createPlusNet preparedInputs
+    where
+      preparedInputs = pairInputs distanceBased ts
