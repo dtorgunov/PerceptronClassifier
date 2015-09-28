@@ -66,32 +66,18 @@ augmentNetwork net (x, (y:ys)) = augmentNetwork newNet (seave newNet (x, ys))
       newNet = net `intersectNet` (hyperplane (fst x) (fst y) 0.5) -- c = 0.5 hardcoded
 
 -- A starting point for the recursion above
-createPlusNet :: (TrainingInput, [TrainingInput]) -> Network
-createPlusNet tis = augmentNetwork net (seave net tis)
+createPlusNet :: [(TrainingInput, TrainingInput)] -> Network
+createPlusNet tis = augmentNetwork net (seave net simplifiedTis)
     where
-      net = hyperplane (fst $ fst tis) (fst $ head $ snd tis) 0.5 -- c = 0.5
+      simplifiedTis = simplify tis
+      net = hyperplane (fst $ fst simplifiedTis) (fst $ head $ snd simplifiedTis) 0.5 -- c = 0.5
 
-            
--- A basic recursive method. Makes sure we don't create surplus
--- perceptrons by filtering each +1-point batch against the network
--- constructed so far
-createNetwork' :: PairedInputs -> Network -> Network
-createNetwork' [] n = n
-createNetwork' (t:ts) n
-    | (net n) == Empty = createNetwork' ts (createPlusNet (simplify t))
-    | otherwise = createNetwork' ts (augmentUnify n misclassifiedInputs)
-    where
-      misclassifiedInputs = seave n (simplify t)
+-- From a list of networks for each +1 point, create a network that classifies all of them correctly
+unifyNetwork :: [Network] -> Network
+unifyNetwork (net:nets) = foldr unionNet net nets
 
--- Augment a network against a +1-point batch, by creating a new
--- intersection-net and unifying it with the existing network
-augmentUnify :: Network -> (TrainingInput, [TrainingInput]) -> Network
-augmentUnify net (_, []) = net
-augmentUnify net is = net `unionNet` (createPlusNet is)
-
--- A starting point for recursion. Pass in an empty network and pair
--- inputs
+-- Create a network, given a training set
 createNetwork :: TrainingSet -> Network
-createNetwork ts = createNetwork' preparedInputs (makeNetwork Empty)
+createNetwork ts = unifyNetwork $ map createPlusNet preparedInputs
     where
       preparedInputs = pairInputs distanceBased ts
