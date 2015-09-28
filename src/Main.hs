@@ -1,7 +1,6 @@
 module Main where
 
 import Training
-import Inputs
 import Networks
 import Types
 import System.Random

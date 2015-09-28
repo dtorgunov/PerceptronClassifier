@@ -3,7 +3,6 @@ module Training where
 import Data.List    
 import Data.Function
 import Types
-import Inputs
 import Networks
 
 pairInputs :: PairFunction -> TrainingSet -> PairedInputs
