@@ -6,7 +6,8 @@ type Classification = Double
 type ActivationFunction = Double -> Classification
 
 -- A network description shows the makeup and topology of the network
-data NetworkDesc = Hyperplane { plusPoint :: Input
+data NetworkDesc = Empty
+                 | Hyperplane { plusPoint :: Input
                               , minusPoint :: Input
                               , c :: Double
                               }

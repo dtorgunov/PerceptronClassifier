@@ -42,6 +42,7 @@ sepFunct u v c = \x -> (x <.> w) - l
 
 -- Generate a network function based on the network description
 networkFunction :: NetworkDesc -> NetworkFunction
+networkFunction Empty = \_ -> 0
 networkFunction (Hyperplane plusOne minusOne c) = sign . sepFunct minusOne plusOne c
 networkFunction (Union n1 n2) = \xs -> sign $ (n1' xs) + (n2' xs) + 0.5
     where
