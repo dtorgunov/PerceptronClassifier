@@ -2,6 +2,8 @@ module Main where
 
 import Training
 import Inputs
+import Networks
+import Types
 import System.Random
 import Data.List
 
@@ -30,10 +32,12 @@ main :: IO ()
 main = do
   gen <- getStdGen
   let (training, verification) = splitList gen iris
-  let net = createNetwork training
-  let results = map (\(x, y) -> x == y) $ map (\(x,y) -> (net x, y)) verification
+  let network = createNetwork training
+  let results = map (\(x, y) -> x == y) $ map (\(x,y) -> ((runNetwork network) x, y)) verification
   let errors = length $ filter (==False) results
   putStrLn ("After training on 70% of the data set, there were " ++ (show errors) ++ " errors during verification.")
   putStrLn "Verified on the following values: "
   mapM_ putStrLn $ map show verification
+  putStrLn "The resulting network is as follows:"
+  putStrLn $ (show . net) network
   

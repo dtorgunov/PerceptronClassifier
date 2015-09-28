@@ -55,7 +55,7 @@ seave :: Network -> (TrainingInput, [TrainingInput]) -> (TrainingInput, [Trainin
 seave net (x,ys) = (x, filter misclassified ys)
     where
       misclassified :: TrainingInput -> Bool
-      misclassified (point, c) = (net point) /= c
+      misclassified (point, c) = ((runNetwork net) point) /= c
 
 -- Given a network and a list of points misclassified by it add a new perceptron to
 -- classify the first point, and then filter out the points now classified correctly before
@@ -64,14 +64,14 @@ augmentNetwork :: Network -> (TrainingInput, [TrainingInput]) -> Network
 augmentNetwork net (x, []) = net
 augmentNetwork net (x, (y:ys)) = augmentNetwork newNet (seave newNet (x, ys))
     where
-      newNet = net `intersectNet` (perc (fst x) (fst y))
+      newNet = net `intersectNet` (hyperplane (fst x) (fst y) 0.5) -- c = 0.5 hardcoded
 
 -- A starting point for the recursion above
 createPlusNet :: [(TrainingInput, TrainingInput)] -> Network
 createPlusNet tis = augmentNetwork net (seave net simplifiedTis)
     where
       simplifiedTis = simplify tis
-      net = perc (fst $ fst simplifiedTis) (fst $ head $ snd simplifiedTis)
+      net = hyperplane (fst $ fst simplifiedTis) (fst $ head $ snd simplifiedTis) 0.5 -- c = 0.5
 
 -- From a list of networks for each +1 point, create a network that classifies all of them correctly
 unifyNetwork :: [Network] -> Network
