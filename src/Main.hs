@@ -23,6 +23,7 @@ takeIndexes (i:is) xs acc = takeIndexes is xs ((xs !! i):acc)
 -- A function to fascilitate verification.
 -- Given a list, split it roughly p/(100 - p)
 splitList' :: (RandomGen g, Eq a) => Int -> g -> [a] -> ([a], [a])
+splitList' 100 _ xs = (xs, xs)
 splitList' p g xs = (training, verification)
     where
       indexes = takeUnique ((length xs - 1) * p `div` 100) (randomRs (0, (length xs - 1)) g) []
@@ -32,7 +33,7 @@ splitList' p g xs = (training, verification)
 usage :: IO ()
 usage = do
   progname <- getProgName
-  putStrLn ("Usage: " ++ progname ++ " CSV-input-file")
+  putStrLn ("Usage: " ++ progname ++ " training-perc CSV-input-file")
 
 testOn :: String -> Int -> IO ()
 testOn filename p = do
@@ -59,5 +60,5 @@ testOn filename p = do
 main :: IO ()
 main = do
   args <- getArgs
-  if (length args) /= 1 then usage else testOn (args !! 0) 70
+  if (length args) /= 2 then usage else testOn (args !! 1) (read (args !! 0))
   
