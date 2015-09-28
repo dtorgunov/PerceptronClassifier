@@ -6,6 +6,8 @@ import Networks
 import Types
 import System.Random
 import Data.List
+import System.Environment
+import Parsing
 
 -- Take n unique elements from a given list
 takeUnique :: (Eq a) => Int -> [a] -> [a] -> [a]
@@ -28,16 +30,34 @@ splitList g xs = (training, verification)
       training = takeIndexes indexes xs []
       verification = xs \\ training
 
+usage :: IO ()
+usage = do
+  progname <- getProgName
+  putStrLn ("Usage: " ++ progname ++ " CSV-input-file")
+
+testOn :: String -> IO ()
+testOn filename = do
+  dt <- readCSVData filename
+  case dt of
+    Left err -> putStrLn err
+    Right (classMap, dataSet) -> do
+                    let class1 = classMap !! 0
+                    let class2 = classMap !! 1
+                    putStrLn ("Assinging classes: " ++ (show class1) ++ ", " ++ (show class2))
+                    gen <- getStdGen
+                    let (training, verification) = splitList gen dataSet
+                    let network = createNetwork training
+                    let results = map (\(x, y) -> x == y) $ map (\(x,y) -> ((runNetwork network) x, y)) verification
+                    let errors = length $ filter (==False) results
+                    putStrLn ("After training on 70% of the data set, there were " ++ (show errors) ++ " errors during verification.")
+                    putStrLn "Verified on the following values: "
+                    mapM_ putStrLn $ map show verification
+                    putStrLn "The resulting network is as follows:"
+                    putStrLn $ (show . net) network
+                             
+  
 main :: IO ()
 main = do
-  gen <- getStdGen
-  let (training, verification) = splitList gen iris
-  let network = createNetwork training
-  let results = map (\(x, y) -> x == y) $ map (\(x,y) -> ((runNetwork network) x, y)) verification
-  let errors = length $ filter (==False) results
-  putStrLn ("After training on 70% of the data set, there were " ++ (show errors) ++ " errors during verification.")
-  putStrLn "Verified on the following values: "
-  mapM_ putStrLn $ map show verification
-  putStrLn "The resulting network is as follows:"
-  putStrLn $ (show . net) network
+  args <- getArgs
+  if (length args) /= 1 then usage else testOn (args !! 0) 
   

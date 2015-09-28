@@ -17,5 +17,5 @@ cabal-version:       >=1.8
 executable NeuralNetworks
   main-is:             Main.hs
   -- other-modules:       
-  build-depends:       base,  random
+  build-depends:       base,  random, parsec
   hs-source-dirs:      src
