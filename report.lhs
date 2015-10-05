@@ -27,6 +27,16 @@
 \begin{code}
 import Data.List
 import Data.Function
+
+-- Only needed by the Misc section
+import Text.ParserCombinators.Parsec
+import Data.List
+import Data.Maybe
+import System.Random
+import System.Environment
+
+-- Needed for debugging
+import GHC.Stack
 \end{code}
 \section{Basic datatypes}
 In this section, we define some basic datatypes to support the construction of our neural network.
@@ -97,10 +107,11 @@ We use pattern matching and the definition of a network outlined above.
 
 \begin{code}
 makeNetwork :: Network -> NetworkFunction
-makeNetwork Empty = error "Attempted to construct an empty network"
+makeNetwork Empty = errorWithStackTrace "Attempted to construct an empty network"
                     
 makeNetwork (Hyperplane plusOne minusOne c) = sign . sepFunct minusOne plusOne c
                                               
+makeNetwork (Union Empty Empty) = error "Union of 2 empty networks"
 makeNetwork (Union Empty n) = makeNetwork n
 makeNetwork (Union n Empty) = makeNetwork n
 makeNetwork (Union n1 n2) = \x -> sign $ (n1' x) + (n2' x) + 0.5
@@ -108,6 +119,7 @@ makeNetwork (Union n1 n2) = \x -> sign $ (n1' x) + (n2' x) + 0.5
     n1' = makeNetwork n1
     n2' = makeNetwork n2
           
+makeNetwork (Intersection Empty Empty) = error "Intersection of 2 empty networks"
 makeNetwork (Intersection Empty n) = makeNetwork n
 makeNetwork (Intersection n Empty) = makeNetwork n
 makeNetwork (Intersection n1 n2) = \x -> sign $ (n1' x) + (n2' x) - 0.5
@@ -174,4 +186,193 @@ prepareInputs = groupInputs distanceGroup
         
 \section{Network construction}
 
+We now begin the network construction mechanism. Firstly, we define a seave function that will take a Network and GroupedInputs, and will return any inputs that are misclassified by a given network. This way, we can concentrate on the inputs for which our network needs adjusting, and not worry too much about those that are already correctly classified.
+
+\begin{code}
+seave :: Network -> (TrainingInput, [TrainingInput]) -> (TrainingInput, [TrainingInput])
+seave Empty i = i
+seave net (x, ys) = (x, filter misclassified ys)
+    where
+    misclassified :: TrainingInput -> Bool
+    misclassified (point, c) = ((makeNetwork net) point) /= c
+\end{code}
+        
+We can now turn to the network construction code. We begin with an empty network and a list of +1 points, matched against all -1 points. Then:
+
+\begin{itemize}
+  \item For each +1 point:
+  \begin{itemize}
+     \item Filter out the points already correctly classified
+     \item Create a subnetwork, such that:
+     \begin{itemize}
+       \item For the first misclassified -1 point, construct a separating hyperplane and intersect it with the subnetwork constructed so far
+     \end{itemize}
+     \item If the union of this subnetwork and the network constructed so far correctly classifies all of the remaining -1 points for this +1 point, return this union
+     \item Otherwise, amend the subnetwork as above, via intersection, and check again
+   \end{itemize}
+   \item When there are no more +1 points with misclassified -1 points left, we are done
+\end{itemize}
+
+Found possible source of the bug: we are currently not checking for misclassified +1 points.
+
+Our network might need to carry out additional checking for those cases.
+
+We now define functions to carry out the procedures above (for now, we fix the parameter c at 0.5):
+
+\begin{code}
+createSubnet :: Network -> (TrainingInput, TrainingInput) -> Network
+createSubnet subnet (x, y) = Intersection subnet (Hyperplane (fst x) (fst y) 0.5)
+
+augmentPlusNet :: Network -> Network -> (TrainingInput, [TrainingInput]) -> Network
+augmentPlusNet net subnet (x, []) = Union net subnet
+augmentPlusNet Empty subnet (x, (y:ys)) = augmentPlusNet subnet' Empty (seave subnet' (x, ys))
+    where
+      subnet' = createSubnet subnet (x, y)
+augmentPlusNet net subnet (x, (y:ys))
+    = augmentPlusNet net subnet' (seave union (x, ys))
+      where
+        subnet' :: Network
+        subnet' = createSubnet subnet (x, y)
+        union :: Network
+        union = Union net subnet'
+
+createNetwork :: Network -> GroupedInputs -> Network
+createNetwork net [] = net
+createNetwork net (i:is) = createNetwork (augmentPlusNet net Empty i') is
+    where
+    i' = seave net i
+\end{code}
+
+\section{Misc}
+The following code is only present to make it easier to test the code, giving it a main function and command line arguments, as well as the ability to parse CSV files.
+        
+\begin{code}
+data TrainingData = TrainingData { inputs :: [Double]
+                                 , cl :: Class
+                                 }
+                    deriving Show
+type Class = String
+type ClassMap = [(String, Double)]
+
+csvFile = do
+  result <- many line
+  eof
+  return result
+
+-- Based on real world haskell
+line :: GenParser Char st [String]
+line = do result <- cells
+          eol
+          return result
+
+cells = do first <- cellContent
+           rest <- remainingCells
+           return (first : rest)
+
+remainingCells = (char ',' >> cells) <|> return ([])
+
+cellContent = many (noneOf ",\n")
+
+eol = char '\n'
+
+parseCSV :: String -> Either ParseError [[String]]
+parseCSV input = parse csvFile "(unknown)" input
+
+-- Read coordinates in as Doubles and separate the classification at
+-- the end
+prepareData' :: [[String]] -> [TrainingData]
+prepareData' = filter (not . empty) . map toDataPoint
+    where
+      empty :: TrainingData -> Bool
+      empty td = length (inputs td) == 0
+      toDataPoint :: [String] -> TrainingData
+      toDataPoint ds = TrainingData inputs cl
+          where
+            cl = head $ reverse $ ds
+            inputs = map read (reverse $ drop 1 $ reverse ds)
+
+-- Make a list of unique classes that are present in the input data
+uniqueClasses :: [TrainingData] -> [String]
+uniqueClasses = nub . map cl
+
+-- Convert the classes to +1/-1
+numericClasses :: ClassMap -> TrainingData -> TrainingInput
+numericClasses classMap dt = (inputs dt, fromJust $ lookup (cl dt) classMap)
+
+-- Prepare data for use. Convert classes to numbers, and report errors
+-- if more than 2 distinct classes are present
+prepareData :: [[String]] -> Either String (ClassMap, TrainingSet)
+prepareData parsed = let dt = prepareData' parsed
+                         classes = uniqueClasses dt
+                     in if (length classes) /= 2 then
+                            Left "Need 2 unique classes to work with"
+                        else
+                            Right $ ((zip classes [1.0,(-1.0)]),
+                                     map (numericClasses
+                                          (zip classes [1.0,(-1.0)]))
+                                     dt)
+                                     
+-- Read a file in and prepare data for use
+readCSVData :: String -> IO (Either String (ClassMap, TrainingSet))
+readCSVData path = do
+  contents <- readFile path
+  case (parseCSV contents) of
+    Left err -> return $ Left (show err)
+    Right dt -> return $ prepareData dt
+
+-- Take n unique elements from a given list
+takeUnique :: (Eq a) => Int -> [a] -> [a] -> [a]
+takeUnique 0 _ acc = acc
+takeUnique n (i:ins) acc | i `elem` acc = takeUnique n ins acc
+                         | otherwise = takeUnique (n-1) ins (i:acc)
+
+-- Take the elements at indexes in is from the list of xs
+takeIndexes :: [Int] -> [a] -> [a] -> [a]
+takeIndexes [] _ acc = acc
+takeIndexes (i:is) xs acc = takeIndexes is xs ((xs !! i):acc)
+                                       
+
+-- A function to fascilitate verification.
+-- Given a list, split it roughly p/(100 - p)
+splitList' :: (RandomGen g, Eq a) => Int -> g -> [a] -> ([a], [a])
+splitList' 100 _ xs = (xs, xs)
+splitList' p g xs = (training, verification)
+    where
+      indexes = takeUnique ((length xs - 1) * p `div` 100) (randomRs (0, (length xs - 1)) g) []
+      training = takeIndexes indexes xs []
+      verification = xs \\ training
+
+usage :: IO ()
+usage = do
+  progname <- getProgName
+  putStrLn ("Usage: " ++ progname ++ " training-perc CSV-input-file")
+
+testOn :: String -> Int -> IO ()
+testOn filename p = do
+  dt <- readCSVData filename
+  case dt of
+    Left err -> putStrLn err
+    Right (classMap, dataSet) -> do
+                    let class1 = classMap !! 0
+                    let class2 = classMap !! 1
+                    putStrLn ("Assigning classes: " ++ (show class1) ++ ", " ++ (show class2))
+                    gen <- getStdGen
+                    let splitList = splitList' p
+                    let (training, verification) = splitList gen dataSet
+                    let network = createNetwork Empty (prepareInputs training)
+                    let results = map (\(x, y) -> x == y) $ map (\(x,y) -> ((makeNetwork network) x, y)) verification
+                    let errors = length $ filter (==False) results
+                    putStrLn ("After training on " ++ (show p) ++ "% of the data set, there were " ++ (show errors) ++ " errors during verification.")
+                    putStrLn "Verified on the following values: "
+                    mapM_ putStrLn $ map show verification
+                    putStrLn "The resulting network is as follows:"
+                    putStrLn $ show network
+                             
+  
+main :: IO ()
+main = do
+  args <- getArgs
+  if (length args) /= 2 then usage else testOn (args !! 1) (read (args !! 0))
+  
+\end{code}
 \end{document}
