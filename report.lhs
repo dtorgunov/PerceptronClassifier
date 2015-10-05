@@ -41,7 +41,7 @@ import GHC.Stack
 \section{Basic datatypes}
 In this section, we define some basic datatypes to support the construction of our neural network.
 
-We start by defining the Input and Classification types. An Input is an n-dimentional list of Doubles that is used to represent the position of a given data point. A Classification is either +1.0 or -1.0. We represent it as a double since it is a result of mathematical manipulation on Double values, but it should never be anything other than $\pm$1.
+We start by defining the Input and Classification types. An Input is an n-dimensional list of Doubles that is used to represent the position of a given data point. A Classification is either +1.0 or -1.0. We represent it as a double since it is a result of mathematical manipulation on Double values, but it should never be anything other than $\pm$1.
 
 \begin{code}
 type Input = [Double]
@@ -54,7 +54,7 @@ Next, we define a Network datatype. It is defined inductively as one of the foll
   \item[An empty network] \hfill \\
   This type of network exists solely to be a starting point for recursion in the algorithms outlined below. It does not represent a valid network, with its only property being that a union or intersection of such a network with another network leaves the other network unchanged.
   \item[A separating hyperplane] \hfill \\
-  This is the most basic type of network. It operates on two inputs, a point classified as +1 and a point classified as -1. It also accepts a parameter, c. It then constructs a separating hyperplane such that, if it were a line in 2 dimentions, it would be orthogonal to the line connecting the +1 and -1 points. The parameter c determines the exact point along this connecting line at which the separating hyperplane intersects with it, with 0.5 being exatly in the middle between the two given points.
+  This is the most basic type of network. It operates on two inputs, a point classified as +1 and a point classified as -1. It also accepts a parameter, c. It then constructs a separating hyperplane such that, if it were a line in 2 dimensions, it would be orthogonal to the line connecting the +1 and -1 points. The parameter c determines the exact point along this connecting line at which the separating hyperplane intersects with it, with 0.5 being exactly in the middle between the two given points.
 
   Mathematically, this can be expressed as
 
@@ -144,7 +144,7 @@ Before we construct a network, it would be helpful to get the inputs into a conc
 
 We assume that we are given a list of inputs to use in the construction of our network. In keeping with the neural networks vocabulary, we will refer to them as "training" inputs, even though it is more appropriate to say that our network is being constructed, rather than trained.
 
-Each such input is assigned a classification that it should be classed as, and a list of such pre-classified inputs will be refered to as the "training set".
+Each such input is assigned a classification that it should be classed as, and a list of such pre-classified inputs will be referred to as the "training set".
 
 \begin{code}
 type TrainingInput = (Input, Classification)
