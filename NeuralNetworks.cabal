@@ -17,5 +17,14 @@ cabal-version:       >=1.8
 executable NeuralNetworks
   main-is:             Main.hs
   -- other-modules:       
-  build-depends:       base,  random, parsec
+  build-depends:       Chart >= 1.5.4
+                     , Chart-cairo >= 1.5.4
+                     , Chart-gtk >= 1.5.1
+                     , base
+                     , colour >= 2.3.3
+                     , colour >= 2.3.3
+                     , data-default-class >= 0.0.1
+                     , lens >= 4.13
+                     , parsec
+                     , random
   hs-source-dirs:      src
