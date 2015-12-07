@@ -4,10 +4,6 @@ import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Builder
 import Control.Monad.Trans(liftIO)
 
--- Tester signals
-quitMenuActivated :: IO ()
-quitMenuActivated = putStrLn "Quit pressed"
-
 main = do
 
   -- Initialise the GUI
@@ -37,7 +33,7 @@ main = do
   comboBoxSetActive initialSeparator 0
 
   -- Connect signals
-  quitMenuItem `on` menuItemActivated $ quitMenuActivated
+  quitMenuItem `on` menuItemActivated $ mainQuit
 
   -- Display GUI and run the main application
   widgetShowAll window
