@@ -2,6 +2,8 @@
 
 \usepackage{amsmath}
 
+\usepackage[margin=2cm]{geometry}
+        
 \usepackage{listings}
 \lstloadlanguages{Haskell}
 \lstnewenvironment{code}
@@ -19,7 +21,7 @@
                {<=}{{$\leq$}}2 {=>}{{$\Rightarrow$}}2 
                {\ .}{{$\circ$}}2 {\ .\ }{{$\circ$}}2
                {>>}{{>>}}2 {>>=}{{>>=}}2
-               {|}{{$\mid$}}1               
+               {|}{{$\mid$}}1              
     }
         
 \begin{document}
