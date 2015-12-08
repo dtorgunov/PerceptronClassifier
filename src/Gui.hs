@@ -9,6 +9,7 @@ import System.Random
 import Data.List
 
 import Training
+import qualified TrainingOld
 import Parsing
 import Types
 import Networks
@@ -35,8 +36,8 @@ splitList' p g xs = (training, verification)
       training = takeIndexes indexes xs []
       verification = xs \\ training
 
-trainNetwork :: FilePath -> IO (TrainingSet, TrainingSet, Network)
-trainNetwork filename = do
+trainNetwork :: FilePath -> (TrainingSet -> Network) -> IO (TrainingSet, TrainingSet, Network)
+trainNetwork filename trainingMethod = do
   dt <- readCSVData filename
   case dt of
     Left err -> putStrLn err >> return ([],[],(makeNetwork Empty))
@@ -48,7 +49,7 @@ trainNetwork filename = do
                           -- 70/30 training
                           let splitList = splitList' 70
                           let (training, verification) = splitList gen dataSet
-                          let network = createNetwork training
+                          let network = trainingMethod training
                           return (training, verification, network)
 
 -- Set the labels based on results
@@ -71,9 +72,14 @@ accuracyMeasure truePositives trueNegatives total
     = (fromIntegral (truePositives+trueNegatives))*100.0/ (fromIntegral total)
 
 -- evaluateNetwork :: IO ()
-evaluateNetwork datafile networkTextView fillInMatrix fillInMatrixVal = do
+evaluateNetwork datafile networkTextView algorithmVersion
+                fillInMatrix fillInMatrixVal = do
   filename <- readIORef datafile
-  (ts, vs, network) <- trainNetwork filename
+
+  chosenAlgorithm <- comboBoxGetActive algorithmVersion
+  (ts, vs, network) <- if chosenAlgorithm == 1 then trainNetwork filename createNetwork
+                       else trainNetwork filename TrainingOld.createNetwork
+  
 
   let resultsTraining = map (\(x,y) -> ((runNetwork network) x, y)) ts
   fillInMatrix resultsTraining
@@ -165,13 +171,12 @@ main = do
 
   -- Connect signals
   quitMenuItem `on` menuItemActivated $ mainQuit
-  regenerate `on` buttonActivated $ (evaluateNetwork datafile networkTextView
+  regenerate `on` buttonActivated $ (evaluateNetwork datafile networkTextView algorithmVersion
                                                      fillInMatrix fillInMatrixVal)
   loadDataMenuItem `on` menuItemActivated $ (chooseDataset datafile window) >> (buttonClicked regenerate)
 
   -- Disable the elements not currently used
   widgetSetSensitive validationMethod False
-  widgetSetSensitive algorithmVersion False
   widgetSetSensitive initialSeparator False
   widgetSetSensitive saveNetworkMenuItem False
   widgetSetSensitive helpMenu False
