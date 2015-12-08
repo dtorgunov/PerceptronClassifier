@@ -90,8 +90,6 @@ evaluateNetwork datafile networkTextView algorithmVersion
   buffer <- textViewGetBuffer networkTextView
   textBufferSetText buffer (show (net network))
 
-  putStrLn (show (net network))
-
 chooseDataset datafile window = do
   fcd <- fileChooserDialogNew (Just "Choose a data set") (Just window) FileChooserActionOpen
          [("Cancel", ResponseCancel)
@@ -113,7 +111,7 @@ chooseDataset datafile window = do
 main = do
 
   -- Create a variable to store the path to the data set later on
-  datafile <- newIORef "../data/iris1.data"
+  datafile <- newIORef ""
 
   -- Initialise the GUI
   initGUI
