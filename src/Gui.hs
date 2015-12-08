@@ -60,12 +60,15 @@ displayConfusionMatrix truePositives falseNegatives falsePositives trueNegatives
   let fp = length $ filter (\(returned, expected) -> ((returned == 1)
                                                      && (expected == (-1)))) results
   let fn = length $ filter (\(x,y) -> (x== (-1)) && (y == 1)) results
---  let acc = (tp+tn)*100.0 / (1.0*(length results))
   labelSetText truePositives (show tp)
   labelSetText falseNegatives (show fn)
   labelSetText falsePositives (show fp)
   labelSetText trueNegatives (show tn)
-  labelSetText accuracy "TBA"
+  labelSetText accuracy (((show $ accuracyMeasure tp tn (length results))) ++ "%")
+
+accuracyMeasure :: Int -> Int -> Int -> Double
+accuracyMeasure truePositives trueNegatives total
+    = (fromIntegral (truePositives+trueNegatives))*100.0/ (fromIntegral total)
 
 -- evaluateNetwork :: IO ()
 evaluateNetwork datafile networkTextView fillInMatrix fillInMatrixVal = do
