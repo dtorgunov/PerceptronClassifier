@@ -74,14 +74,16 @@ accuracyMeasure truePositives trueNegatives total
 
 -- evaluateNetwork :: IO ()
 evaluateNetwork datafile networkTextView algorithmVersion
-                fillInMatrix fillInMatrixVal = do
+                initialSeparator fillInMatrix fillInMatrixVal = do
   filename <- readIORef datafile
 
   chosenAlgorithm <- comboBoxGetActive algorithmVersion
-  (ts, vs, network) <- if chosenAlgorithm == 1 then trainNetwork filename (createNetwork noSeparator)
+                     
+  chosenSeparator <- comboBoxGetActive initialSeparator
+  let sep = if chosenSeparator == 2 then centroidSeparator else noSeparator
+  (ts, vs, network) <- if chosenAlgorithm == 1 then trainNetwork filename (createNetwork sep)
                        else trainNetwork filename TrainingOld.createNetwork
   
-
   let resultsTraining = map (\(x,y) -> ((runNetwork network) x, y)) ts
   fillInMatrix resultsTraining
 
@@ -159,7 +161,7 @@ main = do
 
   -- Set the combo boxes to default values
   comboBoxSetActive validationMethod 1
-  comboBoxSetActive algorithmVersion 1
+  comboBoxSetActive algorithmVersion 0
   comboBoxSetActive initialSeparator 0
 
   -- Create the function for confusion labels
@@ -171,12 +173,11 @@ main = do
   -- Connect signals
   quitMenuItem `on` menuItemActivated $ mainQuit
   regenerate `on` buttonActivated $ (evaluateNetwork datafile networkTextView algorithmVersion
-                                                     fillInMatrix fillInMatrixVal)
+                                                     initialSeparator fillInMatrix fillInMatrixVal)
   loadDataMenuItem `on` menuItemActivated $ (chooseDataset datafile window) >> (buttonClicked regenerate)
 
   -- Disable the elements not currently used
   widgetSetSensitive validationMethod False
-  widgetSetSensitive initialSeparator False
   widgetSetSensitive saveNetworkMenuItem False
   widgetSetSensitive helpMenu False
   
