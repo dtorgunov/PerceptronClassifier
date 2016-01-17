@@ -16,15 +16,15 @@ import Networks
 import InitialSeparators
 import Validation
 
-trainNetwork :: FilePath -> (TrainingSet -> Network) -> IO (ConfusionMatrixData, ConfusionMatrixData, Network)
-trainNetwork filename trainingMethod = do
+trainNetwork :: FilePath -> (TrainingSet -> Network) -> (String -> IO ()) -> IO (ConfusionMatrixData, ConfusionMatrixData, Network)
+trainNetwork filename trainingMethod putOut = do
   dt <- readCSVData filename
   case dt of
     Left err -> putStrLn err >> return (NoData, NoData, (makeNetwork Empty))
     Right (classMap, dataSet) -> do
                           let class1 = classMap !! 0
                           let class2 = classMap !! 1
-                          putStrLn ("Assigning classes: " ++ (show class1) ++ ", " ++ (show class2))
+                          putOut ("Assigning classes: " ++ (show class1) ++ ", " ++ (show class2))
                           gen <- getStdGen
                           -- 70/30 training
                           return $ splitValidation 70 gen dataSet trainingMethod
@@ -42,15 +42,15 @@ displayConfusionMatrix truePositives falseNegatives falsePositives trueNegatives
 
 -- evaluateNetwork :: IO ()
 evaluateNetwork datafile networkTextView algorithmVersion
-                initialSeparator fillInMatrix fillInMatrixVal = do
+                initialSeparator fillInMatrix fillInMatrixVal putOut = do
   filename <- readIORef datafile
 
   chosenAlgorithm <- comboBoxGetActive algorithmVersion
                      
   chosenSeparator <- comboBoxGetActive initialSeparator
   let sep = if chosenSeparator == 2 then centroidSeparator else noSeparator
-  (tm, vm, network) <- if chosenAlgorithm == 1 then trainNetwork filename (createNetwork sep)
-                       else trainNetwork filename (TrainingOld.createNetwork sep)
+  (tm, vm, network) <- if chosenAlgorithm == 1 then trainNetwork filename (createNetwork sep) putOut
+                       else trainNetwork filename (TrainingOld.createNetwork sep) putOut
   
   fillInMatrix tm
   fillInMatrixVal vm
@@ -74,7 +74,14 @@ chooseDataset datafile window = do
 
   widgetDestroy fcd
   return ()
-  
+
+
+putStrLnToTextView :: TextView -> String -> IO ()
+putStrLnToTextView consoleTextView text = do
+  buffer <- textViewGetBuffer consoleTextView
+  mark <- textBufferGetInsert buffer
+  iter <- textBufferGetIterAtMark buffer mark
+  textBufferInsert buffer iter (text ++ "\n")
 
 main = do
 
@@ -120,6 +127,7 @@ main = do
 
   -- Text view
   networkTextView <- builderGetObject builder castToTextView "networkTextView"
+  consoleTextView <- builderGetObject builder castToTextView "console"
 
   -- Add ways to exit the application
   window `on` deleteEvent $ liftIO mainQuit >> return False
@@ -138,7 +146,8 @@ main = do
   -- Connect signals
   quitMenuItem `on` menuItemActivated $ mainQuit
   regenerate `on` buttonActivated $ (evaluateNetwork datafile networkTextView algorithmVersion
-                                                     initialSeparator fillInMatrix fillInMatrixVal)
+                                                     initialSeparator fillInMatrix fillInMatrixVal
+                                                                          (putStrLnToTextView consoleTextView))
   loadDataMenuItem `on` menuItemActivated $ (chooseDataset datafile window) >> (buttonClicked regenerate)
 
   -- Disable the elements not currently used
@@ -148,4 +157,5 @@ main = do
   
   -- Display GUI and run the main application
   widgetShowAll window
+  putStrLnToTextView consoleTextView "Initialisation finished."
   mainGUI
