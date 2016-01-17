@@ -9,7 +9,7 @@ import System.Random
 import Data.List
 
 import Training
-import qualified TrainingOld
+import qualified TrainingOldAugmented as TrainingOld
 import Parsing
 import Types
 import Networks
@@ -82,7 +82,7 @@ evaluateNetwork datafile networkTextView algorithmVersion
   chosenSeparator <- comboBoxGetActive initialSeparator
   let sep = if chosenSeparator == 2 then centroidSeparator else noSeparator
   (ts, vs, network) <- if chosenAlgorithm == 1 then trainNetwork filename (createNetwork sep)
-                       else trainNetwork filename TrainingOld.createNetwork
+                       else trainNetwork filename (TrainingOld.createNetwork sep)
   
   let resultsTraining = map (\(x,y) -> ((runNetwork network) x, y)) ts
   fillInMatrix resultsTraining
