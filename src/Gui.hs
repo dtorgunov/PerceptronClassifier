@@ -1,13 +1,19 @@
 module Main where
 
+-- Data libraries
+import Data.IORef
+import Data.List
+import Data.Map.Strict ((!),Map,fromList)
+
+-- GTK Libraries
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Builder
     
+-- Other libraries
 import Control.Monad.Trans(liftIO)
-import Data.IORef
 import System.Random
-import Data.List
 
+-- Project modules
 import Training
 import qualified TrainingOldAugmented as TrainingOld
 import Parsing
@@ -16,18 +22,48 @@ import Networks
 import InitialSeparators
 import Validation
 
-trainNetwork :: FilePath -> (TrainingSet -> Network) -> (String -> IO ()) -> IO (ConfusionMatrixData, ConfusionMatrixData, Network)
-trainNetwork filename trainingMethod putOut = do
+-- A helper data structure for passing GUI elements around
+data GUI = GUI { consoleOut :: (String -> IO())
+               , displayTrainingMatrix :: (ConfusionMatrixData -> IO ())
+               , displayValidationMatrix :: (ConfusionMatrixData -> IO ())
+               , displayNetwork :: (Network -> IO ())
+               , dataFile :: IORef FilePath
+               , algorithmVersion :: ComboBox
+               , initialSeparator :: ComboBox
+               , rootWindow :: Window
+               }
+
+-- Maps to implement the combo boxes
+separatorMap :: Map Int SeparatorFunction
+separatorMap = fromList [ (0, noSeparator)
+                        , (2, centroidSeparator)
+                        ]
+
+algorithmMap :: Map Int (SeparatorFunction -> TrainingSet -> Network)
+algorithmMap = fromList [ (0, TrainingOld.createNetwork)
+                        , (1, createNetwork)
+                        ]
+
+trainNetwork :: GUI -> IO (ConfusionMatrixData, ConfusionMatrixData, Network)
+trainNetwork gui = do
+  filename <- readIORef (dataFile gui)
   dt <- readCSVData filename
+        
+  chosenAlgorithm <- comboBoxGetActive $ algorithmVersion gui
+  chosenSeparator <- comboBoxGetActive $ initialSeparator gui
+                     
+  let sep = separatorMap ! chosenSeparator
+  let trainingMethod = algorithmMap ! chosenAlgorithm
+
   case dt of
     Left err -> putStrLn err >> return (NoData, NoData, (makeNetwork Empty))
     Right (classMap, dataSet) -> do
                           let class1 = classMap !! 0
                           let class2 = classMap !! 1
-                          putOut ("Assigning classes: " ++ (show class1) ++ ", " ++ (show class2))
+                          (consoleOut gui) ("Assigning classes: " ++ (show class1) ++ ", " ++ (show class2))
                           gen <- getStdGen
                           -- 70/30 training
-                          return $ splitValidation 70 gen dataSet trainingMethod
+                          return $ splitValidation 70 gen dataSet (trainingMethod sep)
 
 -- Set the labels based on results
 displayConfusionMatrix :: (LabelClass l) => l -> l -> l -> l -> l -> ConfusionMatrixData -> IO ()
@@ -39,27 +75,18 @@ displayConfusionMatrix truePositives falseNegatives falsePositives trueNegatives
   labelSetText trueNegatives (show $ tn matData)
   labelSetText accuracy ((show $ acc matData) ++ "%")
 
-
--- evaluateNetwork :: IO ()
-evaluateNetwork datafile networkTextView algorithmVersion
-                initialSeparator fillInMatrix fillInMatrixVal putOut = do
-  filename <- readIORef datafile
-
-  chosenAlgorithm <- comboBoxGetActive algorithmVersion
-                     
-  chosenSeparator <- comboBoxGetActive initialSeparator
-  let sep = if chosenSeparator == 2 then centroidSeparator else noSeparator
-  (tm, vm, network) <- if chosenAlgorithm == 1 then trainNetwork filename (createNetwork sep) putOut
-                       else trainNetwork filename (TrainingOld.createNetwork sep) putOut
+evaluateNetwork :: GUI -> IO ()
+evaluateNetwork gui = do
+  (tm, vm, network) <- trainNetwork gui
   
-  fillInMatrix tm
-  fillInMatrixVal vm
+  (displayTrainingMatrix gui) tm
+  (displayValidationMatrix gui) vm
 
-  buffer <- textViewGetBuffer networkTextView
-  textBufferSetText buffer (show (net network))
+  (displayNetwork gui) network
 
-chooseDataset datafile window = do
-  fcd <- fileChooserDialogNew (Just "Choose a data set") (Just window) FileChooserActionOpen
+chooseDataset :: GUI -> IO ()
+chooseDataset gui = do
+  fcd <- fileChooserDialogNew (Just "Choose a data set") (Just $ rootWindow gui) FileChooserActionOpen
          [("Cancel", ResponseCancel)
          ,("Open", ResponseAccept)]
   widgetShow fcd
@@ -70,7 +97,7 @@ chooseDataset datafile window = do
                 filename <- fileChooserGetFilename fcd
                 case filename of
                   Nothing -> return ()
-                  Just f -> writeIORef datafile f
+                  Just f -> writeIORef (dataFile gui) f
 
   widgetDestroy fcd
   return ()
@@ -83,6 +110,12 @@ putStrLnToTextView consoleTextView text = do
   iter <- textBufferGetIterAtMark buffer mark
   textBufferInsert buffer iter (text ++ "\n")
 
+displayNetworkToTextView :: TextView -> Network -> IO ()
+displayNetworkToTextView textView network = do
+  buffer <- textViewGetBuffer textView
+  textBufferSetText buffer (show (net network))
+
+main :: IO ()
 main = do
 
   -- Create a variable to store the path to the data set later on
@@ -98,9 +131,9 @@ main = do
   window <- builderGetObject builder castToWindow "mainWindow"
 
   -- Combo boxes
-  validationMethod <- builderGetObject builder castToComboBox "validationMethod"
-  algorithmVersion <- builderGetObject builder castToComboBox "algorithmVersion"
-  initialSeparator <- builderGetObject builder castToComboBox "initialSeparator"
+  validationMethodCombo <- builderGetObject builder castToComboBox "validationMethod"
+  algorithmVersionCombo <- builderGetObject builder castToComboBox "algorithmVersion"
+  initialSeparatorCombo <- builderGetObject builder castToComboBox "initialSeparator"
 
   -- Buttons
   regenerate <- builderGetObject builder castToButton "regenerate"
@@ -133,9 +166,9 @@ main = do
   window `on` deleteEvent $ liftIO mainQuit >> return False
 
   -- Set the combo boxes to default values
-  comboBoxSetActive validationMethod 1
-  comboBoxSetActive algorithmVersion 0
-  comboBoxSetActive initialSeparator 0
+  comboBoxSetActive validationMethodCombo 1
+  comboBoxSetActive algorithmVersionCombo 0
+  comboBoxSetActive initialSeparatorCombo 0
 
   -- Create the function for confusion labels
   let fillInMatrix = displayConfusionMatrix truePositives falseNegatives
@@ -143,15 +176,22 @@ main = do
   let fillInMatrixVal = displayConfusionMatrix truePositivesVal falseNegativesVal
                         falsePositivesVal trueNegativesVal accuracyVal
 
+  let guiConfig = GUI { consoleOut = putStrLnToTextView consoleTextView
+                      , displayTrainingMatrix = fillInMatrix
+                      , displayValidationMatrix = fillInMatrixVal
+                      , displayNetwork = displayNetworkToTextView networkTextView
+                      , dataFile = datafile
+                      , algorithmVersion = algorithmVersionCombo
+                      , initialSeparator = initialSeparatorCombo
+                      , rootWindow = window
+                      }
   -- Connect signals
   quitMenuItem `on` menuItemActivated $ mainQuit
-  regenerate `on` buttonActivated $ (evaluateNetwork datafile networkTextView algorithmVersion
-                                                     initialSeparator fillInMatrix fillInMatrixVal
-                                                                          (putStrLnToTextView consoleTextView))
-  loadDataMenuItem `on` menuItemActivated $ (chooseDataset datafile window) >> (buttonClicked regenerate)
+  regenerate `on` buttonActivated $ (evaluateNetwork guiConfig)
+  loadDataMenuItem `on` menuItemActivated $ (chooseDataset guiConfig) >> (buttonClicked regenerate)
 
   -- Disable the elements not currently used
-  widgetSetSensitive validationMethod False
+  widgetSetSensitive validationMethodCombo False
   widgetSetSensitive saveNetworkMenuItem False
   widgetSetSensitive helpMenu False
   
