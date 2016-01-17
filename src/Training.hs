@@ -91,7 +91,9 @@ augmentUnify net is = net `unionNet` (createPlusNet is)
 
 -- A starting point for recursion. Pass in an empty network and pair
 -- inputs
-createNetwork :: TrainingSet -> Network
-createNetwork ts = createNetwork' preparedInputs (makeNetwork Empty)
+createNetwork :: SeparatorFunction -> TrainingSet -> Network
+createNetwork sf ts = createNetwork' preparedInputs (sf plusOnes minusOnes)
     where
       preparedInputs = pairInputs distanceBased ts
+      plusOnes = filter (\(x,c) -> c == 1) ts
+      minusOnes = filter (\(x,c) -> c == (-1)) ts

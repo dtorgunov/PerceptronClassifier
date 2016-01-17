@@ -33,4 +33,4 @@ type PairedInputs = [[(TrainingInput, TrainingInput)]]
 -- against one another
 type PairFunction = [TrainingInput] -> [TrainingInput] -> PairedInputs
 
-
+type SeparatorFunction = [TrainingInput] -> [TrainingInput] -> Network

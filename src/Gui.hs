@@ -13,6 +13,7 @@ import qualified TrainingOld
 import Parsing
 import Types
 import Networks
+import InitialSeparators
 
 -- Take n unique elements from a given list
 takeUnique :: (Eq a) => Int -> [a] -> [a] -> [a]
@@ -77,7 +78,7 @@ evaluateNetwork datafile networkTextView algorithmVersion
   filename <- readIORef datafile
 
   chosenAlgorithm <- comboBoxGetActive algorithmVersion
-  (ts, vs, network) <- if chosenAlgorithm == 1 then trainNetwork filename createNetwork
+  (ts, vs, network) <- if chosenAlgorithm == 1 then trainNetwork filename (createNetwork noSeparator)
                        else trainNetwork filename TrainingOld.createNetwork
   
 
