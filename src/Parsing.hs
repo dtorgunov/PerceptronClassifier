@@ -1,4 +1,6 @@
-module Parsing where
+module Parsing (
+                readCSVData
+               )where
 
 import Text.ParserCombinators.Parsec
 import Data.List

@@ -1,4 +1,6 @@
-module TrainingOldAugmented where
+module Training.Version2 (
+                          createNetwork
+                         )where
 
 import Data.List    
 import Data.Function
@@ -67,23 +69,34 @@ augmentNetwork net (x, (y:ys)) = augmentNetwork newNet (seave newNet (x, ys))
       newNet = net `intersectNet` (hyperplane (fst x) (fst y) 0.5) -- c = 0.5 hardcoded
 
 -- A starting point for the recursion above
-createPlusNet :: Network -> [(TrainingInput, TrainingInput)] -> Network
-createPlusNet sepNet tis = augmentNetwork net (seave net simplifiedTis)
+createPlusNet :: (TrainingInput, [TrainingInput]) -> Network
+createPlusNet tis = augmentNetwork net (seave net tis)
     where
-      simplifiedTis = simplify tis
-      -- a rather ugly hack for using the separator function
-      netNoSep = hyperplane (fst $ fst simplifiedTis) (fst $ head $ snd simplifiedTis) 0.5 -- c = 0.5
-      net = if (Types.net sepNet) == Empty then netNoSep else sepNet
+      net = hyperplane (fst $ fst tis) (fst $ head $ snd tis) 0.5 -- c = 0.5
 
--- From a list of networks for each +1 point, create a network that classifies all of them correctly
-unifyNetwork :: [Network] -> Network
-unifyNetwork (net:nets) = foldr unionNet net nets
+            
+-- A basic recursive method. Makes sure we don't create surplus
+-- perceptrons by filtering each +1-point batch against the network
+-- constructed so far
+createNetwork' :: PairedInputs -> Network -> Network
+createNetwork' [] n = n
+createNetwork' (t:ts) n
+    | isEmptyNet n = createNetwork' ts (createPlusNet (simplify t))
+    | otherwise = createNetwork' ts (augmentUnify n misclassifiedInputs)
+    where
+      misclassifiedInputs = seave n (simplify t)
 
--- Create a network, given a training set
+-- Augment a network against a +1-point batch, by creating a new
+-- intersection-net and unifying it with the existing network
+augmentUnify :: Network -> (TrainingInput, [TrainingInput]) -> Network
+augmentUnify net (_, []) = net
+augmentUnify net is = net `unionNet` (createPlusNet is)
+
+-- A starting point for recursion. Pass in an empty network and pair
+-- inputs
 createNetwork :: SeparatorFunction -> TrainingSet -> Network
-createNetwork sf ts = unifyNetwork $ map (createPlusNet sepNet) preparedInputs
+createNetwork sf ts = createNetwork' preparedInputs (sf plusOnes minusOnes)
     where
       preparedInputs = pairInputs distanceBased ts
       plusOnes = filter (\(x,c) -> c == 1) ts
       minusOnes = filter (\(x,c) -> c == (-1)) ts
-      sepNet = sf plusOnes minusOnes

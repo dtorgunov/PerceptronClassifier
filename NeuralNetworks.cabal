@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                NeuralNetworks
-version:             0.4.3.0
+version:             0.4.3.1
 synopsis:            A neural network training algorithm
 -- description:         
 -- license:             
@@ -15,7 +15,7 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 executable NeuralNetworks
-  main-is:             Gui.hs
+  main-is:             Main.hs
   -- other-modules:       
   build-depends:     base
                    , containers >= 0.5.6.2

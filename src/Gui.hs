@@ -1,5 +1,10 @@
-module Main where
-
+module Gui
+    (
+     prepareGui
+    , rootWindow
+    , consoleOut
+    )where
+    
 -- Data libraries
 import Data.IORef
 import Data.List
@@ -14,18 +19,19 @@ import Control.Monad.Trans(liftIO)
 import System.Random
 
 -- Project modules
-import Training
-import qualified TrainingOldAugmented as TrainingOld
+import Training.Version2
+import qualified Training.Version1 as TrainingOld
 import Parsing
 import Types
 import Networks
 import InitialSeparators
 import Validation
+import ConfusionMatrix
 
 -- A helper data structure for passing GUI elements around
 data GUI = GUI { consoleOut :: (String -> IO())
-               , displayTrainingMatrix :: (ConfusionMatrixData -> IO ())
-               , displayValidationMatrix :: (ConfusionMatrixData -> IO ())
+               , displayTrainingMatrix :: (ConfusionMatrix -> IO ())
+               , displayValidationMatrix :: (ConfusionMatrix -> IO ())
                , displayNetwork :: (Network -> IO ())
                , dataFile :: IORef FilePath
                , algorithmVersion :: ComboBox
@@ -44,7 +50,7 @@ algorithmMap = fromList [ (0, TrainingOld.createNetwork)
                         , (1, createNetwork)
                         ]
 
-trainNetwork :: GUI -> IO (ConfusionMatrixData, ConfusionMatrixData, Network)
+trainNetwork :: GUI -> IO (ConfusionMatrix, ConfusionMatrix, Network)
 trainNetwork gui = do
   filename <- readIORef (dataFile gui)
   dt <- readCSVData filename
@@ -56,7 +62,7 @@ trainNetwork gui = do
   let trainingMethod = algorithmMap ! chosenAlgorithm
 
   case dt of
-    Left err -> putStrLn err >> return (NoData, NoData, (makeNetwork Empty))
+    Left err -> putStrLn err >> return (emptyConfusionMatrix, emptyConfusionMatrix, emptyNet)
     Right (classMap, dataSet) -> do
                           let class1 = classMap !! 0
                           let class2 = classMap !! 1
@@ -65,15 +71,15 @@ trainNetwork gui = do
                           -- 70/30 training
                           return $ splitValidation 70 gen dataSet (trainingMethod sep)
 
--- Set the labels based on results
-displayConfusionMatrix :: (LabelClass l) => l -> l -> l -> l -> l -> ConfusionMatrixData -> IO ()
-displayConfusionMatrix truePositives falseNegatives falsePositives trueNegatives accuracy matData
-    = do
-  labelSetText truePositives (show $ tp matData)
-  labelSetText falseNegatives (show $ fn matData)
-  labelSetText falsePositives (show $ fp matData)
-  labelSetText trueNegatives (show $ tn matData)
-  labelSetText accuracy ((show $ acc matData) ++ "%")
+displayConfusionMatrix :: Builder -> String -> ConfusionMatrix -> IO ()
+displayConfusionMatrix builder suffix matrix = do
+  (getCorrectLabel "truePositives") >>= \l -> labelSetText l (show $ truePositives matrix)
+  (getCorrectLabel "trueNegatives") >>= \l -> labelSetText l (show $ trueNegatives matrix)
+  (getCorrectLabel "falsePositives") >>= \l -> labelSetText l (show $ falsePositives matrix)
+  (getCorrectLabel "falseNegatives") >>= \l -> labelSetText l (show $ falseNegatives matrix)
+  (getCorrectLabel "accuracy") >>= \l -> labelSetText l (show $ accuracy matrix)
+    where
+      getCorrectLabel baseName = builderGetObject builder castToLabel (baseName ++ suffix)
 
 evaluateNetwork :: GUI -> IO ()
 evaluateNetwork gui = do
@@ -113,11 +119,10 @@ putStrLnToTextView consoleTextView text = do
 displayNetworkToTextView :: TextView -> Network -> IO ()
 displayNetworkToTextView textView network = do
   buffer <- textViewGetBuffer textView
-  textBufferSetText buffer (show (net network))
+  textBufferSetText buffer (show network)
 
-main :: IO ()
-main = do
-
+prepareGui :: IO GUI
+prepareGui = do
   -- Create a variable to store the path to the data set later on
   datafile <- newIORef ""
 
@@ -138,20 +143,6 @@ main = do
   -- Buttons
   regenerate <- builderGetObject builder castToButton "regenerate"
 
-  -- Confusion matrix labels (training)
-  truePositives <- builderGetObject builder castToLabel "truePositives"
-  falseNegatives <- builderGetObject builder castToLabel "falseNegatives"
-  falsePositives <- builderGetObject builder castToLabel "falsePositives"
-  trueNegatives <- builderGetObject builder castToLabel "trueNegatives"
-  accuracy <- builderGetObject builder castToLabel "accuracy"
-
-  -- Confusion matrix labels (validation)
-  truePositivesVal <- builderGetObject builder castToLabel "truePositivesVal"
-  falseNegativesVal <- builderGetObject builder castToLabel "falseNegativesVal"
-  falsePositivesVal <- builderGetObject builder castToLabel "falsePositivesVal"
-  trueNegativesVal <- builderGetObject builder castToLabel "trueNegativesVal"
-  accuracyVal <- builderGetObject builder castToLabel "accuracyVal"
-
   -- Menu items
   loadDataMenuItem <- builderGetObject builder castToMenuItem "loadDataMenuItem"
   saveNetworkMenuItem <- builderGetObject builder castToMenuItem "saveNetworkMenuItem"
@@ -170,21 +161,16 @@ main = do
   comboBoxSetActive algorithmVersionCombo 0
   comboBoxSetActive initialSeparatorCombo 0
 
-  -- Create the function for confusion labels
-  let fillInMatrix = displayConfusionMatrix truePositives falseNegatives
-                     falsePositives trueNegatives accuracy
-  let fillInMatrixVal = displayConfusionMatrix truePositivesVal falseNegativesVal
-                        falsePositivesVal trueNegativesVal accuracyVal
-
   let guiConfig = GUI { consoleOut = putStrLnToTextView consoleTextView
-                      , displayTrainingMatrix = fillInMatrix
-                      , displayValidationMatrix = fillInMatrixVal
+                      , displayTrainingMatrix = displayConfusionMatrix builder ""
+                      , displayValidationMatrix = displayConfusionMatrix builder "Val"
                       , displayNetwork = displayNetworkToTextView networkTextView
                       , dataFile = datafile
                       , algorithmVersion = algorithmVersionCombo
                       , initialSeparator = initialSeparatorCombo
                       , rootWindow = window
                       }
+                  
   -- Connect signals
   quitMenuItem `on` menuItemActivated $ mainQuit
   regenerate `on` buttonActivated $ (evaluateNetwork guiConfig)
@@ -194,8 +180,5 @@ main = do
   widgetSetSensitive validationMethodCombo False
   widgetSetSensitive saveNetworkMenuItem False
   widgetSetSensitive helpMenu False
-  
-  -- Display GUI and run the main application
-  widgetShowAll window
-  putStrLnToTextView consoleTextView "Initialisation finished."
-  mainGUI
+
+  return guiConfig
