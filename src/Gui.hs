@@ -36,6 +36,7 @@ data GUI = GUI { consoleOut :: (String -> IO())
                , dataFile :: IORef FilePath
                , algorithmVersion :: ComboBox
                , initialSeparator :: ComboBox
+               , validationMethod :: ComboBox
                , rootWindow :: Window
                }
 
@@ -50,6 +51,10 @@ algorithmMap = fromList [ (0, TrainingOld.createNetwork)
                         , (1, createNetwork)
                         ]
 
+validationMap :: Map Int ValidationFunction
+validationMap = fromList [ (0, crossValidation 10)
+                         , (1, splitValidation 70)]
+
 trainNetwork :: GUI -> IO (ConfusionMatrix, ConfusionMatrix, Network)
 trainNetwork gui = do
   filename <- readIORef (dataFile gui)
@@ -57,9 +62,11 @@ trainNetwork gui = do
         
   chosenAlgorithm <- comboBoxGetActive $ algorithmVersion gui
   chosenSeparator <- comboBoxGetActive $ initialSeparator gui
+  chosenValidation <- comboBoxGetActive $ validationMethod gui
                      
   let sep = separatorMap ! chosenSeparator
   let trainingMethod = algorithmMap ! chosenAlgorithm
+  let validationMethod = validationMap ! chosenValidation
 
   case dt of
     Left err -> putStrLn err >> return (emptyConfusionMatrix, emptyConfusionMatrix, emptyNet)
@@ -68,8 +75,7 @@ trainNetwork gui = do
                           let class2 = classMap !! 1
                           (consoleOut gui) ("Assigning classes: " ++ (show class1) ++ ", " ++ (show class2))
                           gen <- getStdGen
-                          -- 70/30 training
-                          return $ splitValidation 70 gen dataSet (trainingMethod sep)
+                          return $ validationMethod gen dataSet (trainingMethod sep)
 
 displayConfusionMatrix :: Builder -> String -> ConfusionMatrix -> IO ()
 displayConfusionMatrix builder suffix matrix = do
@@ -168,6 +174,7 @@ prepareGui = do
                       , dataFile = datafile
                       , algorithmVersion = algorithmVersionCombo
                       , initialSeparator = initialSeparatorCombo
+                      , validationMethod = validationMethodCombo
                       , rootWindow = window
                       }
                   
@@ -177,7 +184,6 @@ prepareGui = do
   loadDataMenuItem `on` menuItemActivated $ (chooseDataset guiConfig) >> (buttonClicked regenerate)
 
   -- Disable the elements not currently used
-  widgetSetSensitive validationMethodCombo False
   widgetSetSensitive saveNetworkMenuItem False
   widgetSetSensitive helpMenu False
 
