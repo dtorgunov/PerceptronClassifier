@@ -66,19 +66,15 @@ plotClassifiedPointsPlus ps =
     def & plot_points_title .~ "Iris Veriscolor"
         & plot_points_values .~ ps
         & plot_points_style .~ plusses pr pl (opaque red)
-        -- & plot_points_style . point_radius .~ pr
-        -- & plot_points_style . point_color .~ opaque red
      
 plotClassifiedPointsMinus :: [(Double, Double)] -> PlotPoints Double Double
 plotClassifiedPointsMinus ps =
     def & plot_points_title .~ "Iris Virginica"
         & plot_points_values .~ ps
         & plot_points_style .~ exes pr pl (opaque blue)
-        -- & plot_points_style . point_radius .~ pr
-        -- & plot_points_style . point_color .~ opaque blue
 
 layoutOriginalPoints :: [Bool] -> TrainingSet -> Layout Double Double
-layoutOriginalPoints p ts = layout_title .~ "Iris Classes"
+layoutOriginalPoints p ts = layout_title .~ "Iris Data Projection"
                             $ layout_y_axis . laxis_generate .~ scaledAxis def ysc
                             $ layout_x_axis . laxis_generate .~ scaledAxis def xsc
                             $ layout_plots .~ map toPlot [ plotClassifiedPointsPlus plusPoints
@@ -93,25 +89,114 @@ layoutOriginalPoints p ts = layout_title .~ "Iris Classes"
 
 renderableOriginal :: [Bool] -> TrainingSet -> Renderable ()
 renderableOriginal p ts = toRenderable $ layoutOriginalPoints p ts
-
--- plotClassifiedPoints :: [Bool] -> TrainingSet -> IO Bool
--- plotClassifiedPoints p points = do
---   let plusOnes = map fst $ filter (\(_,c) -> c == 1) points
---   let minusOnes = map fst $ filter (\(_,c) -> c == -1) points
---   let plusOnes' = project2D p plusOnes
---   let minusOnes' = project2D p minusOnes
---   plot X11 $ [ Data2D [Color Red, Title "Iris Versicolor"] [] plusOnes', Data2D [Color Blue, Title "Iris Virginica"] [] minusOnes']
-
--- plotDataAsProjection :: [Bool] -> IO ()
--- plotDataAsProjection p = do
---   i <- inputCoordinates
---   plotClassifiedPoints p i
---   return ()
-
+                          
 plotDataAsProjection :: [Bool] -> IO ()
 plotDataAsProjection p = do
    i <- inputCoordinates
    renderableToWindow (renderableOriginal p i) 400 400
    
+trainedNetwork :: IO Network
+trainedNetwork = do
+  i <- readCSVData "../data/iris3.data"
+  let sep = noSeparator
+  let alg = createNetwork
+
+  case i of
+    Left err -> return emptyNet
+    Right (_, ds) -> return $ (alg sep) ds
+
+rangeOfNumbers :: (Double, Double) -> Double -> [Double]
+rangeOfNumbers (from, to) step
+    | from >= to = [to]
+    | otherwise = from:(rangeOfNumbers (from+step, to) step)
+
+samplePoints :: (Double, Double) -> (Double, Double) -> Double -> [(Double, Double)]
+samplePoints scaleOfX scaleOfY step = [(x, y) | x <- xs, y <- ys]
+    where
+      xs = rangeOfNumbers scaleOfX step
+      ys = rangeOfNumbers scaleOfY step
+
+liftPoint' :: [Bool] -> [Double] -> [Double]
+liftPoint' [] _ = []
+liftPoint' (_:ps) [] = 0:(liftPoint' ps [])
+liftPoint' (False:ps) ds = 0:(liftPoint' ps ds)
+liftPoint' (True:ps) (c:ds) = c:(liftPoint' ps ds)
+
+liftPoint :: [Bool] -> (Double, Double) -> [Double]
+liftPoint p (x, y) = liftPoint' p [x, y]
+                           
+
+classifyProjectedPoint :: Network -> [Bool] -> (Double, Double) -> ((Double, Double), Classification)
+classifyProjectedPoint net proj point = (point, cl)
+    where
+      cl = runNetwork net (liftPoint proj point)
+
+sampleStep = 0.1
+nr = 3 -- radius for network points
+
+sampleSpace :: [Bool] -> IO [(Double, Double)]
+sampleSpace p = do
+  i <- inputCoordinates
+  let projectedPoints = project2D p $ map fst i
+  let ysc = yScale projectedPoints
+  let xsc = xScale projectedPoints
+  return $ samplePoints xsc ysc sampleStep
+
+plotNetworkPlus :: [(Double, Double)] -> PlotPoints Double Double
+plotNetworkPlus ps =
+    def & plot_points_title .~ "Iris Veriscolor"
+        & plot_points_values .~ ps
+        & plot_points_style . point_radius .~ nr
+        & plot_points_style . point_color .~ opaque red
+     
+plotNetworkMinus :: [(Double, Double)] -> PlotPoints Double Double
+plotNetworkMinus ps =
+    def & plot_points_title .~ "Iris Virginica"
+        & plot_points_values .~ ps
+        & plot_points_style . point_radius .~ nr
+        & plot_points_style . point_color .~ opaque blue
+
+layoutNetwork :: [((Double, Double), Classification)] -> Layout Double Double
+layoutNetwork ps = layout_title .~ "Network Projection"
+                   $ layout_plots .~ map toPlot [ plotNetworkPlus plusPoints
+                                                , plotNetworkMinus minusPoints
+                                                ]
+                   $ def
+    where
+      plusPoints = map fst $ filter (\(_,c) -> c == 1) ps
+      minusPoints = map fst $ filter (\(_,c) -> c == -1) ps
+                   
+
+plotNetworkAsProjection :: [Bool] -> IO ()
+plotNetworkAsProjection p = do
+  n <- trainedNetwork
+  space <- sampleSpace p
+  let classifiedPoints = map (classifyProjectedPoint n p) space
+  renderableToWindow (toRenderable $ layoutNetwork classifiedPoints) 400 400
   
-  -- try with p6 for now
+
+layoutJoint :: [Bool] -> TrainingSet -> [((Double, Double), Classification)]-> Layout Double Double
+layoutJoint p ts ps = layout_title .~ "Combined Projection"
+                      $ layout_y_axis . laxis_generate .~ scaledAxis def ysc
+                      $ layout_x_axis . laxis_generate .~ scaledAxis def xsc
+                      $ layout_plots .~ map toPlot [ plotClassifiedPointsPlus plusPoints
+                                                   , plotClassifiedPointsMinus minusPoints
+                                                   , plotNetworkPlus np
+                                                   , plotNetworkMinus nm
+                                                   ]
+                      $ def
+    where
+      plusPoints = project2D p $ map fst $ filter (\(_,c) -> c == 1) ts
+      minusPoints = project2D p $ map fst $ filter (\(_,c) -> c == -1) ts
+      ysc = yScale (minusPoints ++ plusPoints)
+      xsc = xScale (minusPoints ++ plusPoints)
+      np = map fst $ filter (\(_,c) -> c == 1) ps
+      nm = map fst $ filter (\(_,c) -> c == -1) ps
+
+plotJoint :: [Bool] -> IO ()
+plotJoint p = do
+  i <- inputCoordinates
+  n <- trainedNetwork
+  space <- sampleSpace p
+  let classifiedPoints = map (classifyProjectedPoint n p) space
+  renderableToWindow (toRenderable $ layoutJoint p i classifiedPoints) 400 400
