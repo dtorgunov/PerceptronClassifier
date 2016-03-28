@@ -175,14 +175,29 @@ plotNetworkAsProjection p = do
   renderableToWindow (toRenderable $ layoutNetwork classifiedPoints) 400 400
   
 
+plotNetworkPlus' :: [(Double, Double)] -> PlotPoints Double Double
+plotNetworkPlus' ps =
+    def & plot_points_title .~ "Iris Veriscolor"
+        & plot_points_values .~ ps
+        & plot_points_style . point_radius .~ nr
+        & plot_points_style . point_color .~ red `withOpacity` 0.5
+     
+plotNetworkMinus' :: [(Double, Double)] -> PlotPoints Double Double
+plotNetworkMinus' ps =
+    def & plot_points_title .~ "Iris Virginica"
+        & plot_points_values .~ ps
+        & plot_points_style . point_radius .~ nr
+        & plot_points_style . point_color .~ blue `withOpacity` 0.5
+
+         
 layoutJoint :: [Bool] -> TrainingSet -> [((Double, Double), Classification)]-> Layout Double Double
 layoutJoint p ts ps = layout_title .~ "Combined Projection"
                       $ layout_y_axis . laxis_generate .~ scaledAxis def ysc
                       $ layout_x_axis . laxis_generate .~ scaledAxis def xsc
                       $ layout_plots .~ map toPlot [ plotClassifiedPointsPlus plusPoints
                                                    , plotClassifiedPointsMinus minusPoints
-                                                   , plotNetworkPlus np
-                                                   , plotNetworkMinus nm
+                                                   , plotNetworkPlus' np
+                                                   , plotNetworkMinus' nm
                                                    ]
                       $ def
     where
