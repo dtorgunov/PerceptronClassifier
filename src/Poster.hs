@@ -46,6 +46,8 @@ p4 = [False, True, True, False]
 p5 = [False, True, False, True]
 p6 = [False, False, True, True]
 
+labels = ["Sepal Length", "Sepal Width", "Petal Length", "Petal Width"]
+
 pr = 5 -- radius of crosses/plusses
 pl = 2 -- thickness of line
 
@@ -73,10 +75,18 @@ plotClassifiedPointsMinus ps =
         & plot_points_values .~ ps
         & plot_points_style .~ exes pr pl (opaque blue)
 
+xTitle :: [Bool] -> String
+xTitle p = (applyProjection p labels) !! 0
+
+yTitle :: [Bool] -> String
+yTitle p = (applyProjection p labels) !! 1
+
 layoutOriginalPoints :: [Bool] -> TrainingSet -> Layout Double Double
 layoutOriginalPoints p ts = layout_title .~ "Iris Data Projection"
                             $ layout_y_axis . laxis_generate .~ scaledAxis def ysc
                             $ layout_x_axis . laxis_generate .~ scaledAxis def xsc
+                            $ layout_x_axis . laxis_title .~ (xTitle p) 
+                            $ layout_y_axis . laxis_title .~ (yTitle p) 
                             $ layout_plots .~ map toPlot [ plotClassifiedPointsPlus plusPoints
                                                          , plotClassifiedPointsMinus minusPoints
                                                          ]
@@ -156,8 +166,10 @@ plotNetworkMinus ps =
         & plot_points_style . point_radius .~ nr
         & plot_points_style . point_color .~ opaque blue
 
-layoutNetwork :: [((Double, Double), Classification)] -> Layout Double Double
-layoutNetwork ps = layout_title .~ "Network Projection"
+layoutNetwork :: [Bool] -> [((Double, Double), Classification)] -> Layout Double Double
+layoutNetwork p ps = layout_title .~ "Network Projection"
+                   $ layout_x_axis . laxis_title .~ (xTitle p) 
+                   $ layout_y_axis . laxis_title .~ (yTitle p) 
                    $ layout_plots .~ map toPlot [ plotNetworkPlus plusPoints
                                                 , plotNetworkMinus minusPoints
                                                 ]
@@ -172,7 +184,7 @@ plotNetworkAsProjection p = do
   n <- trainedNetwork
   space <- sampleSpace p
   let classifiedPoints = map (classifyProjectedPoint n p) space
-  renderableToWindow (toRenderable $ layoutNetwork classifiedPoints) 400 400
+  renderableToWindow (toRenderable $ layoutNetwork p classifiedPoints) 400 400
   
 
 plotNetworkPlus' :: [(Double, Double)] -> PlotPoints Double Double
@@ -194,6 +206,8 @@ layoutJoint :: [Bool] -> TrainingSet -> [((Double, Double), Classification)]-> L
 layoutJoint p ts ps = layout_title .~ "Combined Projection"
                       $ layout_y_axis . laxis_generate .~ scaledAxis def ysc
                       $ layout_x_axis . laxis_generate .~ scaledAxis def xsc
+                      $ layout_x_axis . laxis_title .~ (xTitle p) 
+                      $ layout_y_axis . laxis_title .~ (yTitle p) 
                       $ layout_plots .~ map toPlot [ plotClassifiedPointsPlus plusPoints
                                                    , plotClassifiedPointsMinus minusPoints
                                                    , plotNetworkPlus' np
