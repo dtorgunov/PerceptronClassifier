@@ -1,3 +1,15 @@
+{- |
+Module      : $Header$
+Description : Parsing data in for classification
+Copyright   : (c) Denis Torgunov, 2015-2016
+License     : No license
+
+Maintainer  : dtorgunov@leafonthewind.net
+Stability   : experimental
+Portability : portable (depends on Gtk2Hs)
+
+This module holds all the functions necessary to read training sets in from files.
+-}
 module Parsing (
                 readCSVData
                )where
@@ -7,39 +19,52 @@ import Data.List
 import Data.Maybe
 import Types
 
-data TrainingData = TrainingData { inputs :: [Double]
-                                 , cl :: Class
-                                 }
+-- | Abstracts the data as a list of doubles and a class, which is later translated to +1 or -1.
+data TrainingData
+    = TrainingData { inputs :: [Double] -- ^ The input vector
+                   , cl :: Class -- ^ The class this point should be classified as
+                   }
                     deriving Show
+
+-- | A class can be any 'String'
 type Class = String
+
+-- | A simple mapping from 'String's to 'Double's, converting the 'String' classes to +1.0 or -1.0
 type ClassMap = [(String, Double)]
 
+-- | Represnts a CSV file, as a collection of many lines, followed by an end of file
 csvFile = do
   result <- many line
   eof
   return result
 
--- Based on real world haskell
+-- Based on real world haskell (mention in report!)
+
+-- | A line is a collection of cells, followed by a newline
 line :: GenParser Char st [String]
 line = do result <- cells
           eol
           return result
 
+-- | A cell is a list of "cell contents"
 cells = do first <- cellContent
            rest <- remainingCells
            return (first : rest)
 
+-- | Makes sure we keep reading cells as long as there are commas, and return [] after the last cell
 remainingCells = (char ',' >> cells) <|> return ([])
 
+-- | The content of a cell is anything other than a comma or newline
 cellContent = many (noneOf ",\n")
 
+-- | A simple newline
 eol = char '\n'
 
+-- | Parse the input using 'csvFile' above
 parseCSV :: String -> Either ParseError [[String]]
 parseCSV input = parse csvFile "(unknown)" input
 
--- Read coordinates in as Doubles and separate the classification at
--- the end
+-- | Read coordinates in as 'Double's and separate the classification at the end
 prepareData' :: [[String]] -> [TrainingData]
 prepareData' = filter (not . empty) . map toDataPoint
     where
@@ -51,15 +76,16 @@ prepareData' = filter (not . empty) . map toDataPoint
             cl = head $ reverse $ ds
             inputs = map read (reverse $ drop 1 $ reverse ds)
 
--- Make a list of unique classes that are present in the input data
+-- | Make a list of unique classes that are present in the input data, in order to construct
+-- the 'ClassMap'
 uniqueClasses :: [TrainingData] -> [String]
 uniqueClasses = nub . map cl
 
--- Convert the classes to +1/-1
+-- | Convert the classes to +1.0/-1.0
 numericClasses :: ClassMap -> TrainingData -> TrainingInput
 numericClasses classMap dt = (inputs dt, fromJust $ lookup (cl dt) classMap)
 
--- Prepare data for use. Convert classes to numbers, and report errors
+-- | Prepare data for use. Convert classes to numbers, and report errors
 -- if more than 2 distinct classes are present
 prepareData :: [[String]] -> Either String (ClassMap, TrainingSet)
 prepareData parsed = let dt = prepareData' parsed
@@ -72,7 +98,7 @@ prepareData parsed = let dt = prepareData' parsed
                                           (zip classes [1.0,(-1.0)]))
                                      dt)
                                      
--- Read a file in and prepare data for use
+-- | Read a file in and prepare data for use
 readCSVData :: String -> IO (Either String (ClassMap, TrainingSet))
 readCSVData path = do
   contents <- readFile path

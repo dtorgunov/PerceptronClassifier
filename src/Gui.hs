@@ -19,8 +19,9 @@ import Control.Monad.Trans(liftIO)
 import System.Random
 
 -- Project modules
-import Training.Version2
-import qualified Training.Version1 as TrainingOld
+import qualified Training.Version1 as Training1
+import qualified Training.Version2 as Training2
+import qualified Training.Version3 as Training3
 import Parsing
 import Types
 import Networks
@@ -47,8 +48,9 @@ separatorMap = fromList [ (0, noSeparator)
                         ]
 
 algorithmMap :: Map Int (SeparatorFunction -> TrainingSet -> Network)
-algorithmMap = fromList [ (0, TrainingOld.createNetwork)
-                        , (1, createNetwork)
+algorithmMap = fromList [ (0, Training1.createNetwork)
+                        , (1, Training2.createNetwork)
+                        , (2, Training3.createNetwork)
                         ]
 
 validationMap :: Map Int ValidationFunction
