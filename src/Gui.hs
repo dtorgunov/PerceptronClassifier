@@ -28,6 +28,7 @@ import Networks
 import InitialSeparators
 import Validation
 import ConfusionMatrix
+import Plotting
 
 -- A helper data structure for passing GUI elements around
 data GUI = GUI { consoleOut :: (String -> IO())
@@ -38,6 +39,8 @@ data GUI = GUI { consoleOut :: (String -> IO())
                , algorithmVersion :: ComboBox
                , initialSeparator :: ComboBox
                , validationMethod :: ComboBox
+               , visualisationFlag :: CheckButton
+               , plotArea :: ScrolledWindow
                , rootWindow :: Window
                }
 
@@ -57,11 +60,17 @@ validationMap :: Map Int ValidationFunction
 validationMap = fromList [ (0, crossValidation 10)
                          , (1, splitValidation 70)]
 
+readTrainingSet :: GUI -> IO (ClassMap, TrainingSet)
+readTrainingSet gui = do
+  filename <- readIORef (dataFile gui)
+  dataContents <- readCSVData filename
+
+  case dataContents of
+    Left err -> (consoleOut gui) err >> return ([], [])
+    Right parsed -> return parsed
+
 trainNetwork :: GUI -> IO (ConfusionMatrix, ConfusionMatrix, Network)
 trainNetwork gui = do
-  filename <- readIORef (dataFile gui)
-  dt <- readCSVData filename
-        
   chosenAlgorithm <- comboBoxGetActive $ algorithmVersion gui
   chosenSeparator <- comboBoxGetActive $ initialSeparator gui
   chosenValidation <- comboBoxGetActive $ validationMethod gui
@@ -70,14 +79,16 @@ trainNetwork gui = do
   let trainingMethod = algorithmMap ! chosenAlgorithm
   let validationMethod = validationMap ! chosenValidation
 
-  case dt of
-    Left err -> putStrLn err >> return (emptyConfusionMatrix, emptyConfusionMatrix, emptyNet)
-    Right (classMap, dataSet) -> do
-                          let class1 = classMap !! 0
-                          let class2 = classMap !! 1
-                          (consoleOut gui) ("Assigning classes: " ++ (show class1) ++ ", " ++ (show class2))
-                          gen <- getStdGen
-                          return $ validationMethod gen dataSet (trainingMethod sep)
+  (classMap, trainingSet) <- readTrainingSet gui
+
+  case trainingSet of
+    [] -> return (emptyConfusionMatrix, emptyConfusionMatrix, emptyNet)
+    _ -> do
+      let class1 = classMap !! 0
+      let class2 = classMap !! 1
+      (consoleOut gui) ("Assigning classes: " ++ (show class1) ++ ", " ++ (show class2))
+      gen <- getStdGen
+      return $ validationMethod gen trainingSet (trainingMethod sep)
 
 displayConfusionMatrix :: Builder -> String -> ConfusionMatrix -> IO ()
 displayConfusionMatrix builder suffix matrix = do
@@ -89,12 +100,47 @@ displayConfusionMatrix builder suffix matrix = do
     where
       getCorrectLabel baseName = builderGetObject builder castToLabel (baseName ++ suffix)
 
+clearPlots :: GUI -> IO ()
+clearPlots gui = do
+  [child] <- containerGetChildren $ plotArea gui
+  widgetDestroy child
+
+noPlots :: GUI -> IO ()
+noPlots gui = do
+  label <- labelNew $ Just "Plots disabled"
+  scrolledWindowAddWithViewport (plotArea gui) label
+  widgetShowAll $ plotArea gui
+
+generatePlots :: GUI -> Network -> IO ()
+generatePlots gui network = do
+  (classMap, trainingSet) <- readTrainingSet gui
+  case trainingSet of
+    [] -> noPlots gui
+    _ -> do
+      plots <- generateAllProjections trainingSet classMap network
+      (plotArea gui) `scrolledWindowAddWithViewport` plots
+      widgetShowAll $ plotArea gui
+
+
+displayPlots :: GUI -> Network -> IO ()
+displayPlots gui network = do
+  buttonState <- toggleButtonGetActive $ visualisationFlag gui
+  clearPlots gui
+  if buttonState then
+      do
+        generatePlots gui network
+  else
+      do
+        noPlots gui
+
 evaluateNetwork :: GUI -> IO ()
 evaluateNetwork gui = do
   (tm, vm, network) <- trainNetwork gui
   
   (displayTrainingMatrix gui) tm
   (displayValidationMatrix gui) vm
+
+  (displayPlots gui) network
 
   (displayNetwork gui) network
 
@@ -161,6 +207,12 @@ prepareGui = do
   networkTextView <- builderGetObject builder castToTextView "networkTextView"
   consoleTextView <- builderGetObject builder castToTextView "console"
 
+  -- Checkbox
+  visualisationCheckBox <- builderGetObject builder castToCheckButton "visualiseCheckBox"
+
+  -- Scrolled window
+  plotAreaWindow <- builderGetObject builder castToScrolledWindow "plotArea"
+
   -- Add ways to exit the application
   window `on` deleteEvent $ liftIO mainQuit >> return False
 
@@ -177,6 +229,8 @@ prepareGui = do
                       , algorithmVersion = algorithmVersionCombo
                       , initialSeparator = initialSeparatorCombo
                       , validationMethod = validationMethodCombo
+                      , visualisationFlag = visualisationCheckBox
+                      , plotArea = plotAreaWindow
                       , rootWindow = window
                       }
                   
