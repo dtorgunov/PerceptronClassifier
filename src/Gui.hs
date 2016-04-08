@@ -217,7 +217,7 @@ prepareGui = do
   window `on` deleteEvent $ liftIO mainQuit >> return False
 
   -- Set the combo boxes to default values
-  comboBoxSetActive validationMethodCombo 1
+  comboBoxSetActive validationMethodCombo 0
   comboBoxSetActive algorithmVersionCombo 0
   comboBoxSetActive initialSeparatorCombo 0
 
