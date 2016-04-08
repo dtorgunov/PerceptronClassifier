@@ -1,4 +1,4 @@
-module NewPoster where
+module Main where
 
 import Types
 import InitialSeparators
@@ -17,6 +17,10 @@ import Control.Lens
 import Data.Colour
 import Data.Colour.Names
 import Data.Default.Class
+
+import qualified Graphics.UI.Gtk as Gtk
+import Graphics.UI.Gtk.Builder
+import Control.Monad.Trans(liftIO)
 
 type Projection = [Bool]
 type Point2D = (Double, Double)
@@ -167,6 +171,42 @@ layoutNetwork p classes trainingSet net
       networkPlusPoints = map fst $ plusOnes classifiedPoints
       networkMinusPoints = map fst $ minusOnes classifiedPoints
 
+
+-- modelled after Chart code
+createRenderableCanvas :: Renderable a -> IO Gtk.DrawingArea
+createRenderableCanvas chart = do
+    canvas <- Gtk.drawingAreaNew
+    Gtk.onExpose canvas $ const (updateCanvas chart canvas)
+    return canvas
+
+
+generateProjection :: TrainingSet -> ClassMap -> Network -> Projection -> IO Gtk.HBox
+generateProjection trainingSet classes net p = do
+  points <- createRenderableCanvas (toRenderable $ layoutPoints p classes trainingSet)
+  network <- createRenderableCanvas (toRenderable $ layoutNetwork p classes trainingSet net)
+  box <- Gtk.hBoxNew True 0
+
+  box `Gtk.containerAdd` points  
+  box `Gtk.containerAdd` network
+
+  return box
+
+generateAllProjections :: TrainingSet -> ClassMap -> Network -> IO Gtk.VBox
+generateAllProjections trainingSet classes net = do
+    let projectionBox = generateProjection trainingSet classes net
+
+    let projections = generateProjectors (length $ fst $ head trainingSet)
+    projectionBoxes <- mapM projectionBox projections
+
+    box <- Gtk.vBoxNew False 0
+    Gtk.widgetSetSizeRequest box (-1) (400*(length projections)) -- replace the 400 with window size-based metric
+
+    mapM (box `Gtk.containerAdd`) projectionBoxes
+
+    return box
+    
+                      
+
 main = do
   inputs <- readCSVData "../data/iris3.data"
   let trainingSet = snd $ head $ rights [inputs]
@@ -177,5 +217,20 @@ main = do
     Left err -> return emptyNet
     Right (_, ds) -> return $ (alg sep) ds
 
-  -- renderableToWindow (toRenderable $ layoutPoints [False, False, True, True] (fst $ head $ rights [inputs]) trainingSet) 400 400
-  renderableToWindow (toRenderable $ layoutNetwork [False, False, True, True] (fst $ head $ rights [inputs]) trainingSet net) 400 400
+  let classes = fst $ head $ rights [inputs]
+  Gtk.initGUI
+  builder <- Gtk.builderNew
+  Gtk.builderAddFromFile builder "plots.glade"
+
+  window <- Gtk.builderGetObject builder Gtk.castToWindow "window1"
+  
+  plotArea <- Gtk.builderGetObject builder Gtk.castToScrolledWindow "plotArea"
+
+  box <- generateAllProjections trainingSet classes net 
+  Gtk.scrolledWindowAddWithViewport plotArea box
+
+  window `Gtk.on` Gtk.deleteEvent $ liftIO Gtk.mainQuit >> return False
+
+  Gtk.widgetShowAll window
+
+  Gtk.mainGUI
