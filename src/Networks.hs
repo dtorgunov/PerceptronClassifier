@@ -26,6 +26,7 @@ module Networks (
                 ) where
 
 import Types
+import Data.Tree
 
 -- | A "network descpriton": this shows the topology of the network, and can be used to trace how it was
 -- constructed. It represents a network on a "conceptual" level, as seen by the algorithm.
@@ -44,7 +45,7 @@ data NetworkDesc
     | Union NetworkDesc NetworkDesc
     -- | Represents an intersection of 2 networks
     | Intersection NetworkDesc NetworkDesc
-      deriving (Show, Eq)
+      deriving (Show, Eq) -- Implement show explicitly?
 
 -- | A "network function" is a simple function from 'Input' to 'Classification' that can be used
 -- to classify any given input vector.
@@ -124,16 +125,66 @@ generatePerceptron :: Network -> Weights
 generatePerceptron = generatePerceptron' . net
           
 generatePerceptron' :: NetworkDesc -> Weights
-generatePerceptron' Empty = undefined
-generatePerceptron' (Union _ _) = undefined
-generatePerceptron' (Intersection _ _) = undefined
+generatePerceptron' Empty = error "Cannot generate an empty network perceptron"
+generatePerceptron' (Union _ _) = [1.0, 1.0, 0.5]
+generatePerceptron' (Intersection _ _) = [1.0, 1.0, (-0.5)]
 generatePerceptron' (Hyperplane plusOne minusOne c) = ws ++ [b]
     where
       ws = zipWith (-) plusOne minusOne
       b = (squaredNorm minusOne) - (minusOne <.> plusOne) - c * (squaredNorm ws)
 
+--generatePerceptronTree :: NetworkDesc ->
+
+ndescUnfolder :: NetworkDesc -> (Weights, [NetworkDesc])
+ndescUnfolder Empty = error "Cannot generate a tree with empty nets"
+ndescUnfolder h@(Hyperplane _ _ _) = (generatePerceptron' h, [])
+ndescUnfolder u@(Union n1 n2) = (generatePerceptron' u, [n1, n2])
+ndescUnfolder i@(Intersection n1 n2) = (generatePerceptron' i, [n1, n2])
+
+generatePerceptronNet :: Network -> PerceptronNet
+generatePerceptronNet = unfoldTree ndescUnfolder . net
+
+leaf :: Tree a -> Bool
+leaf tree = null $ subForest tree
+
+-- | Adds a value as a sub-node for every leaf in the tree
+addToLeaves :: a -> Tree a -> Tree a
+addToLeaves val tree
+    | leaf tree = Node { rootLabel = rootLabel tree
+                       , subForest = [Node { rootLabel = val
+                                           , subForest = []
+                                           }]
+                       }
+    | otherwise = Node { rootLabel = rootLabel tree
+                       , subForest = map (addToLeaves val) (subForest tree)
+                       }
+
+
+classify :: Input -> PerceptronNet -> Classification
+classify x pn = reduceNetwork augmentedTree
+     where
+       augmentedTree = addToLeaves (x ++ [1]) pn
+
+reduceNetwork :: PerceptronNet -> Classification
+reduceNetwork tree
+    | (length $ flatten tree) == 1 = head $ head $ flatten tree
+    | otherwise = reduceNetwork $ reduceLeaves tree
+
+reduceLeaves :: PerceptronNet -> PerceptronNet
+reduceLeaves tree
+    | leaf tree = tree -- a leaf "reduces" to itself
+    | (length $ subForest tree) == 1-- only a single leaf, assume it is "biased"
+      = Node { rootLabel = [sign $ (rootLabel tree) <.> (rootLabel $ head $ subForest tree)]
+             , subForest = []
+        }
+    | and $ map leaf $ subForest tree -- all branches are leaves: join into a vector and add unit bias
+        = Node { rootLabel = [sign $ (rootLabel tree) <.> ((concat $ map rootLabel $ subForest tree) ++ [1.0])]
+               , subForest = []
+               }
+    | otherwise = Node { rootLabel = rootLabel tree
+                       , subForest = map reduceLeaves $ subForest tree
+                       }
+
+
 applyPerceptron :: Input -> Weights -> Classification
 applyPerceptron x w = sign $ (x ++ [1]) <.> w
-
--- A property to test: for any given a, b, c and a list of doubles xs of the same size:
--- (runNetwork (hyperplane a b c) x) == (applyPerceptron x (hyperplane a b c))

@@ -13,7 +13,9 @@ Data types are usually defined together with their supporting functions in other
 -}
 module Types where
 
--- | The 'Weights' type is a collection of weights assigned to a perceptron. Not used in the current version.
+import Data.Tree
+
+-- | The 'Weights' type is a collection of weights assigned to a perceptron.
 type Weights = [Double]
 
 -- | 'Input' is a position vector (represtnted as a list of 'Double's) of a point that is to be classified.
@@ -23,9 +25,12 @@ type Input = [Double]
 -- Its definition is subject to change, to better reflect this convention.
 type Classification = Double
 
--- | An "activation" or "transfer" function of a perceptron. Not used in the current version.
+-- | A function to convert from an arbitrary result of applying 'Weights' to an 'Input' to a 'Classification'. Currently, the sign function is used exclusively.
 type ActivationFunction = Double -> Classification
 
+-- | A tree representing a network of perceptrons
+type PerceptronNet = Tree Weights
+    
 -- | 'TrainingInput' represents any input that is used during the training process, whether for construction of validation
 -- of the network. It is an 'Input' vector, paired with the correct 'Classification' of a point.
 type TrainingInput = (Input, Classification)
