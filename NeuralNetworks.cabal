@@ -17,11 +17,12 @@ cabal-version:       >=1.8
 executable NeuralNetworks
   main-is:             Main.hs
   -- other-modules:       
-  build-depends:     base
+  build-depends:     QuickCheck
+                   , base
                    , containers >= 0.5.6.2
                    , data-default-class >= 0.0.1
                    , gtk >= 0.13.9
-                   , lens >= 4.13
+                   , lens
                    , mtl >= 2.2.1
                    , parsec
                    , random

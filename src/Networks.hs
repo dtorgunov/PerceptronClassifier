@@ -21,6 +21,8 @@ module Networks (
                 , unionNet
                 , makeNetwork
                 , runNetwork
+                , generatePerceptron
+                , applyPerceptron
                 ) where
 
 import Types
@@ -91,8 +93,6 @@ sepFunct :: Input -- ^ Point to be classified as -1
          -> (Input -> Double) -- ^ Returns a function that can then be passed to the activation function
 sepFunct u v c = \x -> (x <.> w) - l
     where
-      squaredNorm = sum . map (^2)
-      a <.> b = sum $ zipWith (*) a b
       w = zipWith (-) v u
       l = c * (squaredNorm w) - (squaredNorm u) + (u <.> v)
 
@@ -117,3 +117,23 @@ makeNetwork n = Network (networkFunction n) n
 runNetwork :: Network -> Input -> Classification
 runNetwork n xs = (f n) xs
 
+squaredNorm = sum . map (^2)
+a <.> b = sum $ zipWith (*) a b
+
+generatePerceptron :: Network -> Weights
+generatePerceptron = generatePerceptron' . net
+          
+generatePerceptron' :: NetworkDesc -> Weights
+generatePerceptron' Empty = undefined
+generatePerceptron' (Union _ _) = undefined
+generatePerceptron' (Intersection _ _) = undefined
+generatePerceptron' (Hyperplane plusOne minusOne c) = ws ++ [b]
+    where
+      ws = zipWith (-) plusOne minusOne
+      b = (squaredNorm minusOne) - (minusOne <.> plusOne) - c * (squaredNorm ws)
+
+applyPerceptron :: Input -> Weights -> Classification
+applyPerceptron x w = sign $ (x ++ [1]) <.> w
+
+-- A property to test: for any given a, b, c and a list of doubles xs of the same size:
+-- (runNetwork (hyperplane a b c) x) == (applyPerceptron x (hyperplane a b c))
