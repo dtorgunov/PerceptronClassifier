@@ -39,7 +39,7 @@ createPlusNet plusPoint minusPoints = augmentNetwork net plusPoint (seave minusP
 -- much higher potential for overfitting due to the inclusion of non-seaved versions!
 createNetwork' :: TrainingSet -> Network -> TrainingSet -> TrainingSet -> Network
 createNetwork' ts net correctPlusOnes correctMinusOnes
-    | isEmptyNet net = createNetwork' ts (createPlusNet plusPoint minusPoints)
+    | isEmptyNet net = createNetwork' ts (createPlusNet plusPoint minusPoints) [] []
     | null seaved = net
     | otherwise = createNetwork' ts (net `unionNet` (createPlusNet plusPoint minusPoints)) correctPlusOnes' correctMinusOnes'
     where
@@ -49,8 +49,8 @@ createNetwork' ts net correctPlusOnes correctMinusOnes
       correctPlusOnes' = undefined
       correctMinusOnes' = undefined
       -- use centres of mass?
-      plusPoint = if plusPoints' == [] then  else head $ plusOnes
-      minusPoints = if minusPoints' == [] then [cgMinusOne] else (sortByDistanceTo $ fst plusPoint) $ minusOnes seaved
+      plusPoint = if plusPoints' == [] then undefined else head $ plusOnes seaved
+      minusPoints = if minusPoints' == [] then undefined else (sortByDistanceTo $ fst plusPoint) $ minusOnes seaved
 --      plusPoint = if (plusOnes seaved) == [] then head $ plusOnes ts else head $ plusOnes seaved
 --      minusPoints = if (minusOnes seaved) == [] then (sortByDistanceTo $ fst plusPoint) $ minusOnes ts else (sortByDistanceTo $ fst plusPoint) $ minusOnes seaved
 
