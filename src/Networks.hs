@@ -21,8 +21,8 @@ module Networks (
                 , unionNet
                 , makeNetwork
                 , runNetwork
-                , generatePerceptron
-                , applyPerceptron
+                , perceptronNetwork
+                , classify
                 ) where
 
 import Types
@@ -141,8 +141,8 @@ ndescUnfolder h@(Hyperplane _ _ _) = (generatePerceptron' h, [])
 ndescUnfolder u@(Union n1 n2) = (generatePerceptron' u, [n1, n2])
 ndescUnfolder i@(Intersection n1 n2) = (generatePerceptron' i, [n1, n2])
 
-generatePerceptronNet :: Network -> PerceptronNet
-generatePerceptronNet = unfoldTree ndescUnfolder . net
+perceptronNetwork :: Network -> PerceptronNetwork
+perceptronNetwork = unfoldTree ndescUnfolder . net
 
 leaf :: Tree a -> Bool
 leaf tree = null $ subForest tree
@@ -159,18 +159,17 @@ addToLeaves val tree
                        , subForest = map (addToLeaves val) (subForest tree)
                        }
 
-
-classify :: Input -> PerceptronNet -> Classification
+classify :: Input -> PerceptronNetwork -> Classification
 classify x pn = reduceNetwork augmentedTree
      where
        augmentedTree = addToLeaves (x ++ [1]) pn
 
-reduceNetwork :: PerceptronNet -> Classification
+reduceNetwork :: PerceptronNetwork -> Classification
 reduceNetwork tree
     | (length $ flatten tree) == 1 = head $ head $ flatten tree
     | otherwise = reduceNetwork $ reduceLeaves tree
 
-reduceLeaves :: PerceptronNet -> PerceptronNet
+reduceLeaves :: PerceptronNetwork -> PerceptronNet
 reduceLeaves tree
     | leaf tree = tree -- a leaf "reduces" to itself
     | (length $ subForest tree) == 1-- only a single leaf, assume it is "biased"
@@ -184,7 +183,3 @@ reduceLeaves tree
     | otherwise = Node { rootLabel = rootLabel tree
                        , subForest = map reduceLeaves $ subForest tree
                        }
-
-
-applyPerceptron :: Input -> Weights -> Classification
-applyPerceptron x w = sign $ (x ++ [1]) <.> w

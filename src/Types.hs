@@ -29,7 +29,7 @@ type Classification = Double
 type ActivationFunction = Double -> Classification
 
 -- | A tree representing a network of perceptrons
-type PerceptronNet = Tree Weights
+type PerceptronNetwork = Tree Weights
     
 -- | 'TrainingInput' represents any input that is used during the training process, whether for construction of validation
 -- of the network. It is an 'Input' vector, paired with the correct 'Classification' of a point.
