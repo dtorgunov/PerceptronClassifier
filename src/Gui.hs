@@ -21,7 +21,7 @@ import System.Random
 -- Project modules
 import qualified Training.Version1 as Training1
 import qualified Training.Version2 as Training2
-import qualified Training.Version3 as Training3
+import qualified Training.Version10 as Training3
 import Parsing
 import Types
 import Networks

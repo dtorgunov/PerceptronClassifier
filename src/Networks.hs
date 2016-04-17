@@ -81,11 +81,17 @@ hyperplane plusOne minusOne c = makeNetwork $ Hyperplane plusOne minusOne c
 
 -- | Constructs an intersection of two networks
 intersectNet :: Network -> Network -> Network
-n1 `intersectNet` n2 = makeNetwork $ Intersection (net n1) (net n2)
+n1 `intersectNet` n2
+   | isEmptyNet n1 = n2
+   | isEmptyNet n2 = n1
+   | otherwise = makeNetwork $ Intersection (net n1) (net n2)
 
 -- | Constructs a union of two networks
 unionNet :: Network -> Network -> Network
-n1 `unionNet` n2 = makeNetwork $ Union (net n1) (net n2)
+n1 `unionNet` n2 
+   | isEmptyNet n1 = n2
+   | isEmptyNet n2 = n1
+   | otherwise = makeNetwork $ Union (net n1) (net n2)
 
 -- | A separating hyperplane function
 sepFunct :: Input -- ^ Point to be classified as -1
@@ -169,7 +175,7 @@ reduceNetwork tree
     | (length $ flatten tree) == 1 = head $ head $ flatten tree
     | otherwise = reduceNetwork $ reduceLeaves tree
 
-reduceLeaves :: PerceptronNetwork -> PerceptronNet
+reduceLeaves :: PerceptronNetwork -> PerceptronNetwork
 reduceLeaves tree
     | leaf tree = tree -- a leaf "reduces" to itself
     | (length $ subForest tree) == 1-- only a single leaf, assume it is "biased"
