@@ -4,7 +4,7 @@ import Types
 import InitialSeparators
 import Networks
 import Parsing
-import Training.Version1
+import Training
 import Data.Either
 import Data.List
 

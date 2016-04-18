@@ -1,6 +1,6 @@
 {- |
 Module      : $Header$
-Description : The initial training algorithm implementation
+Description : The training algorithm implementation
 Copyright   : (c) Denis Torgunov, 2015-2016
 License     : No license
 
@@ -8,11 +8,11 @@ Maintainer  : dtorgunov@leafonthewind.net
 Stability   : experimental
 Portability : portable (depends on Gtk2Hs)
 
-Like all 'Training' modules, this one defines a 'createNetwork' function which can construct/train a network. This module implements the simplest possible interpretation of the algorithm. See 'Training.Version2' for a more sophisticated approach.
+This module defines a 'createNetwork' function which can construct/train a network. 
 -}
-module Training.Version10 (
-                           createNetwork
-                          )where
+module Training (
+                 createNetwork
+                )where
 
 import Data.List    
 import Data.Function
@@ -21,7 +21,6 @@ import Types
 import Networks
 import InitialSeparators
 
--- Should add carrying the network through -- adding this
 -- Should add early filtering -- adding this
 
 distance :: Input -> Input -> Double
