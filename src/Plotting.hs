@@ -1,3 +1,15 @@
+{- |
+Module      : $Header$
+Description : Generating plots
+Copyright   : (c) Denis Torgunov, 2015-2016
+License     : No license
+
+Maintainer  : dtorgunov@leafonthewind.net
+Stability   : experimental
+Portability : portable (depends on Gtk2Hs)
+
+This module is used to generate plots that help visualise the network by projecting it onto various pairs of axes.
+-}
 module Plotting where
 
 import Types
@@ -44,12 +56,14 @@ plusOnes = filter (\(x,c) -> c == 1)
 minusOnes :: (Eq b, Num b) => [(a, b)] -> [(a, b)]
 minusOnes = filter (\(x, c) -> c == (-1))
 
--- Some "constants" that should be tweaked later
-
-pr = 5 -- plus/cross radius
-pl = 2 -- line thickness (?)
+-- | Default radius of plotted points
+pr = 5
+-- | Default line thickness for plotted points
+pl = 2
+-- | Default step in sample space
 sampleStep = 0.1
-nr = 3 -- radius for network points
+-- | Default radius when plotting the network
+nr = 3
 
 -- | Given a 'Projection' and a list, leave only the elements for which the projection
 -- is 'True'

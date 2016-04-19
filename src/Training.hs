@@ -41,7 +41,7 @@ seave ts net = filter misclassified ts
       misclassified (i, c) = (runNetwork net i) /= c
 
 -- | Filter, keeping only the points that should be classified as +1
-plusPoitns :: [TrainingInput] -> [TrainingInput]
+plusPoints :: [TrainingInput] -> [TrainingInput]
 plusPoints = filter (\(x,c) -> c == 1)
 -- | Filter, keeping only the points that should be classified as -1
 minusPoints :: [TrainingInput] -> [TrainingInput]
