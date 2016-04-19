@@ -96,7 +96,7 @@ prepareData parsed = let dt = prepareData' parsed
                                      dt)
                                      
 -- | Read a file in and prepare data for use
-readCSVData :: String -> IO (Either String (ClassMap, TrainingSet))
+readCSVData :: FilePath -> IO (Either String (ClassMap, TrainingSet))
 readCSVData path = do
   contents <- readFile path
   case (parseCSV contents) of
