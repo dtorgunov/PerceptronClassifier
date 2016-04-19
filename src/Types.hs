@@ -39,7 +39,7 @@ type TrainingInput = (Input, Classification)
 type TrainingSet = [TrainingInput]
 
 -- | 'PairedInputs' represent pairs of +1 and -1 points that will be used during network construction to construct separating
--- hyperplains. It is a list of lists, with each list being a list of -1 points paired to a specific +1 point.
+-- hyperplanes. It is a list of lists, with each list being a list of -1 points paired to a specific +1 point.
 -- Used in the early algorithm versions.
 type PairedInputs = [[(TrainingInput, TrainingInput)]]
 
