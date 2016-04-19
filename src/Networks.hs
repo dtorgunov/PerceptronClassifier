@@ -22,6 +22,7 @@ module Networks (
                 , makeNetwork
                 , runNetwork
                 , perceptronNetwork
+                , countPerceptrons
                 , classify
                 ) where
 
@@ -189,3 +190,6 @@ reduceLeaves tree
     | otherwise = Node { rootLabel = rootLabel tree
                        , subForest = map reduceLeaves $ subForest tree
                        }
+
+countPerceptrons :: Network -> Int
+countPerceptrons = length . flatten . perceptronNetwork

@@ -33,6 +33,7 @@ data GUI = GUI { consoleOut :: (String -> IO())
                , displayTrainingMatrix :: (ConfusionMatrix -> IO ())
                , displayValidationMatrix :: (ConfusionMatrix -> IO ())
                , displayNetwork :: (Network -> IO ())
+               , displayPerceptronCount :: (Network -> IO ())
                , dataFile :: IORef FilePath
                , initialSeparator :: ComboBox
                , validationMethod :: ComboBox
@@ -49,7 +50,8 @@ separatorMap = fromList [ (0, noSeparator)
 
 validationMap :: Map Int ValidationFunction
 validationMap = fromList [ (0, crossValidation 10)
-                         , (1, splitValidation 70)]
+                         , (1, splitValidation 70)
+                         ]
 
 readTrainingSet :: GUI -> IO (ClassMap, TrainingSet)
 readTrainingSet gui = do
@@ -133,6 +135,8 @@ evaluateNetwork gui = do
 
   (displayNetwork gui) network
 
+  (displayPerceptronCount gui) network
+
 chooseDataset :: GUI -> IO ()
 chooseDataset gui = do
   fcd <- fileChooserDialogNew (Just "Choose a data set") (Just $ rootWindow gui) FileChooserActionOpen
@@ -163,6 +167,11 @@ displayNetworkToTextView :: TextView -> Network -> IO ()
 displayNetworkToTextView textView network = do
   buffer <- textViewGetBuffer textView
   textBufferSetText buffer (show network)
+
+displayPCountToLabel :: Label -> Network -> IO ()
+displayPCountToLabel label network = do
+  let pCount = countPerceptrons network
+  labelSetText label (show pCount)
 
 prepareGui :: IO GUI
 prepareGui = do
@@ -199,6 +208,9 @@ prepareGui = do
   -- Scrolled window
   plotAreaWindow <- builderGetObject builder castToScrolledWindow "plotArea"
 
+  -- Label
+  perceptronCountLabel <- builderGetObject builder castToLabel "percepCount"
+
   -- Add ways to exit the application
   window `on` deleteEvent $ liftIO mainQuit >> return False
 
@@ -210,6 +222,7 @@ prepareGui = do
                       , displayTrainingMatrix = displayConfusionMatrix builder ""
                       , displayValidationMatrix = displayConfusionMatrix builder "Val"
                       , displayNetwork = displayNetworkToTextView networkTextView
+                      , displayPerceptronCount = displayPCountToLabel perceptronCountLabel
                       , dataFile = datafile
                       , initialSeparator = initialSeparatorCombo
                       , validationMethod = validationMethodCombo
