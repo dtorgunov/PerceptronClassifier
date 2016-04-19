@@ -25,7 +25,7 @@ module ConfusionMatrix (
 import Types
 
 
--- | A confusion matrix holds the count of true/false positives/negatives and an accuracy measure.
+-- | A confusion matrix holds the count of true-false positives-negatives and an accuracy measure.
 data ConfusionMatrix = ConfusionMatrix { truePositives :: Double
                                        , trueNegatives :: Double
                                        , falsePositives :: Double
@@ -34,7 +34,8 @@ data ConfusionMatrix = ConfusionMatrix { truePositives :: Double
                                        }
 
 
--- * Those are the predicates used to build confusion matrices. Given a tuple (returned, expected)
+-- * Predicates
+-- Those are the predicates used to build confusion matrices. Given a tuple (returned, expected)
 -- where returned is the classification, as given by the network, and expected is the 'correct' one
 -- it checks whether a point is a true positive, true negative, etc.
 
@@ -47,7 +48,8 @@ falsePositivesP (returned, expected) = (returned == 1) && (expected == (-1))
 falseNegativesP :: (Classification, Classification) -> Bool
 falseNegativesP (returned, expected) = (returned == (-1)) && (expected == 1)
 
--- * Those functions utilise the predicates above to count the amount of each type of point,
+-- * Counters
+-- Those functions utilise the predicates above to count the amount of each type of point,
 -- and lift the resulting length to a 'Double'.
 
 countTruePositives :: [(Classification, Classification)] -> Double
