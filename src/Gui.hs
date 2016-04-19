@@ -117,12 +117,7 @@ displayPlots :: GUI -> Network -> IO ()
 displayPlots gui network = do
   buttonState <- toggleButtonGetActive $ visualisationFlag gui
   clearPlots gui
-  if buttonState then
-      do
-        generatePlots gui network
-  else
-      do
-        noPlots gui
+  if buttonState then generatePlots gui network else noPlots gui
 
 evaluateNetwork :: GUI -> IO ()
 evaluateNetwork gui = do
@@ -173,15 +168,15 @@ displayPCountToLabel label network = do
   let pCount = countPerceptrons network
   labelSetText label (show pCount)
 
-prepareGui :: IO GUI
-prepareGui = do
+prepareGui :: FilePath -> IO GUI
+prepareGui builderPath = do
   -- Create a variable to store the path to the data set later on
   datafile <- newIORef ""
 
   -- Initialise the GUI
   initGUI
   builder <- builderNew
-  builderAddFromFile builder "toplevel.glade"
+  builderAddFromFile builder builderPath
 
   -- Get the named items
   -- The main window

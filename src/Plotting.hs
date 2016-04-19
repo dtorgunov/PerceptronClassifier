@@ -9,7 +9,6 @@ import Data.Either
 import Data.List
 
 import Graphics.Rendering.Chart
-import Graphics.Rendering.Chart.Backend.Cairo
 import Graphics.Rendering.Chart.Gtk
 import Graphics.Rendering.Chart.Axis
 import Graphics.Rendering.Chart.Axis.Int
