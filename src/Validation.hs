@@ -57,8 +57,6 @@ confusionMatrix :: TrainingSet -> Network -> ConfusionMatrix
 confusionMatrix ts net = let results = map (\(x,y) -> ((runNetwork net) x, y)) ts
                          in createConfusionMatrix results 
 
--- Use p% of the set for training, and (100-p)% for one-time validation
-
 -- | Split a (shuffled) training set into p% and (100-p)%, using the first for training and the second for validation.
 -- This function is meant to be partially applied to p (the percentage), yielding a 'ValidationFunction'.
 splitValidation :: Int -> ValidationFunction
@@ -70,19 +68,10 @@ splitValidation p gen dataSet trainingMethod = (cmdTraining, cmdValidation, netw
       cmdValidation = confusionMatrix validation network
 
 
--- Splits a list into k (approximately) equal-sized sublists.
-
 -- | Split a list into k approxmiately equal-sized sublists. If the list is not divisible by k,
 -- the first (length `mod` k) sublists will end up with 1 element more than the following sublists.
 equalLengthSublists :: Int -> [a] -> [[a]]
-equalLengthSublists k l
-    | (length l) `mod` k == 0 = equalLengthSublistsEven k l
-    | otherwise = equalLengthSublistsUneven k l
-
--- Probably represent a general case, as (simpleSize `mod` k == 0 if evenly divisible)
--- | Used when the sublist's length is not equally divisible by k
-equalLengthSublistsUneven :: Int -> [a] -> [[a]]
-equalLengthSublistsUneven k l = splitBy k' firstPart ++ splitBy k'' secondPart
+equalLengthSublists k l = splitBy k' firstPart ++ splitBy k'' secondPart
     where
       sampleSize = length l
       k' = (sampleSize `div` k) + 1
@@ -90,24 +79,20 @@ equalLengthSublistsUneven k l = splitBy k' firstPart ++ splitBy k'' secondPart
       firstPart = take ((sampleSize `mod` k) * k') l
       secondPart = drop ((sampleSize `mod` k) * k') l
 
--- This is used when the number of samples is evenly divisible by k
-equalLengthSublistsEven :: Int -> [a] -> [[a]]
-equalLengthSublistsEven k l = splitBy k' l
-    where
-      k' = (length l) `div` k
-
--- splitBy :: Int -> [a] -> [[a]]
--- splitBy k = takeWhile (not . null) . unfoldr (Just . splitAt k)
+-- | An accumulator-based recursive function called by 'splitBy'
 splitBy' :: Int -> [a] -> [[a]] -> [[a]]
 splitBy' k [] acc = reverse acc
 splitBy' k s acc = splitBy' k (drop k s) ((take k s):acc)
 
+-- | Split a list into sublists of a given size
 splitBy :: Int -> [a] -> [[a]]
 splitBy k s = splitBy' k s []
 
+-- | Prepares k folds to be used for k-fold cross-validation
 folds :: (RandomGen g) => Int -> g -> TrainingSet -> [TrainingSet]
 folds k g = equalLengthSublists k . shuffleList g
 
+-- | An accumulator-based recursive function called by 'validateOnEach'
 validateOnEach' :: Int -> [(ConfusionMatrix, ConfusionMatrix)] -> (TrainingSet -> Network) -> [TrainingSet] -> [(ConfusionMatrix, ConfusionMatrix)]
 validateOnEach' n acc trainingMethod dataSets
     | n >= (length dataSets) = reverse acc
@@ -120,10 +105,15 @@ validateOnEach' n acc trainingMethod dataSets
       validMat = confusionMatrix validationSet network
                     
 
+-- | Given a training function and a list of 'TrainingSet's, construct
+-- the training and validation confusion matrices, using each 'TrainingSet' for validation
+-- exactly once
 validateOnEach :: (TrainingSet -> Network) -> [TrainingSet] -> [(ConfusionMatrix, ConfusionMatrix)]
 validateOnEach = validateOnEach' 0 []
 
-crossValidation :: Int -> ValidationFunction
+-- | Construct a 'ValidationFunction' for k-fold cross-validation
+crossValidation :: Int -- ^ the parametere k, determining the number of folds
+                -> ValidationFunction
 crossValidation k g dataSet trainingMethod = let dataSets = folds k g dataSet
                                                  matrices = validateOnEach trainingMethod dataSets
                                                  finalNetwork = trainingMethod dataSet

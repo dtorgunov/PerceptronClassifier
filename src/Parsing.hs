@@ -9,6 +9,8 @@ Stability   : experimental
 Portability : portable (depends on Gtk2Hs)
 
 This module holds all the functions necessary to read training sets in from files.
+
+Based on Real World Haskell.
 -}
 module Parsing (
                 readCSVData
@@ -29,16 +31,11 @@ data TrainingData
 -- | A class can be any 'String'
 type Class = String
 
--- | A simple mapping from 'String's to 'Double's, converting the 'String' classes to +1.0 or -1.0
-type ClassMap = [(String, Double)]
-
 -- | Represnts a CSV file, as a collection of many lines, followed by an end of file
 csvFile = do
   result <- many line
   eof
   return result
-
--- Based on real world haskell (mention in report!)
 
 -- | A line is a collection of cells, followed by a newline
 line :: GenParser Char st [String]

@@ -10,7 +10,7 @@ Portability : portable (depends on Gtk2Hs)
 
 This module provides the definitions of the 'Network' data type, and all related data types and functions, such as those dealing with construction of a network, as well as those that use the network for classification.
 
-At the moment the sign activation function is assumed by the module, and the hyperplane distance parameter is assumed to be 0.5.
+At the moment the hyperplane distance parameter is assumed to be 0.5.
 -}
 module Networks (
                  Network
@@ -62,11 +62,9 @@ data Network = Network { f :: NetworkFunction
 instance Show Network where
     show n = show $ net n
 
--- | A sign activation/transfer function.
+-- | A sign activation function.
 sign :: ActivationFunction
 sign = signum
-
--- The following network combinations, for now, assume sign as the activation function
 
 -- | Constructs an empty network
 emptyNet :: Network
@@ -125,12 +123,21 @@ makeNetwork n = Network (networkFunction n) n
 runNetwork :: Network -> Input -> Classification
 runNetwork n xs = (f n) xs
 
+-- | Compute the squared norm of a given vector
+squaredNorm :: [Double] -> Double
 squaredNorm = sum . map (^2)
+
+-- | Compute the dot (scalar) product of two vectors
+(<.>) :: [Double] -> [Double] -> Double
 a <.> b = sum $ zipWith (*) a b
 
+-- | Generate a perceptron (represented as a its 'Weights') corresponding to a given 'Network'.
+-- Note that this does NOT recursively traverse the network, it only returns the perceptron
+-- corresponding to the top-most classifier
 generatePerceptron :: Network -> Weights
 generatePerceptron = generatePerceptron' . net
-          
+
+-- | An equivalent of 'generatePerceptron', but operates on 'NetworkDesc' instead of 'Network'
 generatePerceptron' :: NetworkDesc -> Weights
 generatePerceptron' Empty = error "Cannot generate an empty network perceptron"
 generatePerceptron' (Union _ _) = [1.0, 1.0, 0.5]
@@ -140,17 +147,20 @@ generatePerceptron' (Hyperplane plusOne minusOne c) = ws ++ [b]
       ws = zipWith (-) plusOne minusOne
       b = (squaredNorm minusOne) - (minusOne <.> plusOne) - c * (squaredNorm ws)
 
---generatePerceptronTree :: NetworkDesc ->
-
+-- | Used as the 'unfold' function when constructing a tree (i.e. 'PerceptronNetwork')
+-- from a 'Network'.
 ndescUnfolder :: NetworkDesc -> (Weights, [NetworkDesc])
 ndescUnfolder Empty = error "Cannot generate a tree with empty nets"
 ndescUnfolder h@(Hyperplane _ _ _) = (generatePerceptron' h, [])
 ndescUnfolder u@(Union n1 n2) = (generatePerceptron' u, [n1, n2])
 ndescUnfolder i@(Intersection n1 n2) = (generatePerceptron' i, [n1, n2])
 
+-- | Convert a 'Network' to 'PerceptronNetwork', going from a description of the way
+-- the network was constructed to a tree of perceptron weights
 perceptronNetwork :: Network -> PerceptronNetwork
 perceptronNetwork = unfoldTree ndescUnfolder . net
 
+-- | Checks if a 'Tree' represents a leaf (i.e. has no children)
 leaf :: Tree a -> Bool
 leaf tree = null $ subForest tree
 
@@ -166,16 +176,31 @@ addToLeaves val tree
                        , subForest = map (addToLeaves val) (subForest tree)
                        }
 
+-- | Classify an 'Input' using a 'PerceptronNetwork'. Should return the same result as 'runNetwork'.
 classify :: Input -> PerceptronNetwork -> Classification
 classify x pn = reduceNetwork augmentedTree
      where
        augmentedTree = addToLeaves (x ++ [1]) pn
 
+-- | Reduce a network to a classification, by recursively reducing the leaves of the tree,
+-- until only a root node is left
 reduceNetwork :: PerceptronNetwork -> Classification
 reduceNetwork tree
     | (length $ flatten tree) == 1 = head $ head $ flatten tree
     | otherwise = reduceNetwork $ reduceLeaves tree
 
+-- | Reduce the leaves of the network tree.
+-- A single leaf 'reduces' to itself
+--
+-- A tree with 1 child, which is a leaf, assumes the child node contains a biased input
+-- vector and prunes it, returning a leaf with the classification according to the hyperplane at
+-- the current node
+--
+-- A tree with multiple branches, all of which are leaves, is a combinator. It constructs a vector
+-- out of the values of its children, adds a unit bias, and prunes, returning a leaf which represents
+-- the combined classification
+--
+-- All other cases simply map over their leaves
 reduceLeaves :: PerceptronNetwork -> PerceptronNetwork
 reduceLeaves tree
     | leaf tree = tree -- a leaf "reduces" to itself
@@ -191,5 +216,6 @@ reduceLeaves tree
                        , subForest = map reduceLeaves $ subForest tree
                        }
 
+-- | Count the number of perceptrons in a 'Network'
 countPerceptrons :: Network -> Int
 countPerceptrons = length . flatten . perceptronNetwork

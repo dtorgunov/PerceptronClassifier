@@ -21,10 +21,20 @@ import qualified Graphics.UI.Gtk as Gtk
 import Graphics.UI.Gtk.Builder
 import Control.Monad.Trans(liftIO)
 
+-- | A list of 'Bool' values of the same size as the number of attributes in the data set.
+-- Only the attributes at positions where this list has the value 'True' will be retained
+-- in a projection.
 type Projection = [Bool]
+
+-- | A point in 2-dimensional space.
 type Point2D = (Double, Double)
-type StyleFunction = Double -> Double -> AlphaColour Double -> PointStyle
-type ClassMap = [(String, Double)] -- to be consistent with Parsing. Might need moving to Types
+
+-- | A short name for functions used to determine the size and color of symbols
+-- points are plotted with
+type StyleFunction = Double -- ^ radius of the point
+                   -> Double -- ^ thickness of the line the point is drawn with
+                   -> AlphaColour Double -- ^ the colour
+                   -> PointStyle
 
 -- Also used by training algorithms. Move to Types, maybe?
 plusOnes = filter (\(x,c) -> c == 1)

@@ -46,3 +46,7 @@ type PairedInputs = [[(TrainingInput, TrainingInput)]]
 -- | A function that determined the order in which the points will be compared.
 type PairFunction = [TrainingInput] -> [TrainingInput] -> PairedInputs
 
+
+-- | A simple mapping from 'String's to 'Double's,
+-- produced when parsing, converting the 'String' classes to +1.0 or -1.0
+type ClassMap = [(String, Double)] 
