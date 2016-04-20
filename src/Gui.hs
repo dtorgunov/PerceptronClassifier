@@ -28,24 +28,25 @@ import Validation
 import ConfusionMatrix
 import Plotting
 
--- A helper data structure for passing GUI elements around
-data GUI = GUI { consoleOut :: (String -> IO())
-               , displayTrainingMatrix :: (ConfusionMatrix -> IO ())
-               , displayValidationMatrix :: (ConfusionMatrix -> IO ())
-               , displayNetwork :: (Network -> IO ())
-               , displayPerceptronCount :: (Network -> IO ())
-               , dataFile :: IORef FilePath
-               , initialSeparator :: ComboBox
+-- | A helper data structure for passing the necessary elements of the GUI
+-- to different parts of the module
+data GUI = GUI { consoleOut :: (String -> IO()) -- ^ a function to print to the console
+               , displayTrainingMatrix :: (ConfusionMatrix -> IO ()) -- ^ a function to set the training confusion matrix lables correctly
+               , displayValidationMatrix :: (ConfusionMatrix -> IO ()) -- ^ a function to set the validation confusion matrix lables correctly
+               , displayNetwork :: (Network -> IO ()) -- ^ a function to display the textual representation of the network to the user
+               , displayPerceptronCount :: (Network -> IO ()) -- ^ a function to display perceptron count of the network to the user
+               , dataFile :: IORef FilePath -- ^ the path to the data file being used currently
+               , initialSeparator :: ComboBox 
                , validationMethod :: ComboBox
                , visualisationFlag :: CheckButton
-               , plotArea :: ScrolledWindow
-               , rootWindow :: Window
+               , plotArea :: ScrolledWindow -- ^ an area into which the plots should be inserted
+               , rootWindow :: Window -- ^ the main application window
                }
 
--- Maps to implement the combo boxes
+-- * Combo box choice maps
 separatorMap :: Map Int SeparatorFunction
 separatorMap = fromList [ (0, noSeparator)
-                        , (2, centroidSeparator)
+                        , (1, centroidSeparator)
                         ]
 
 validationMap :: Map Int ValidationFunction
@@ -53,6 +54,7 @@ validationMap = fromList [ (0, crossValidation 10)
                          , (1, splitValidation 70)
                          ]
 
+-- | Uses the path stored in 'dataFile' to read in training data
 readTrainingSet :: GUI -> IO (ClassMap, TrainingSet)
 readTrainingSet gui = do
   filename <- readIORef (dataFile gui)
@@ -62,6 +64,9 @@ readTrainingSet gui = do
     Left err -> (consoleOut gui) err >> return ([], [])
     Right parsed -> return parsed
 
+-- | Uses the 'ComboBox' fields in the 'GUI' to pick the appropriate functions from the 'Map's
+-- provided, and trains a network, using a specified validation method.
+-- The training and validation confusion matrices are then returned, along with a trained network.
 trainNetwork :: GUI -> IO (ConfusionMatrix, ConfusionMatrix, Network)
 trainNetwork gui = do
   chosenSeparator <- comboBoxGetActive $ initialSeparator gui
@@ -81,7 +86,13 @@ trainNetwork gui = do
       gen <- getStdGen
       return $ validationMethod gen trainingSet (createNetwork sep)
 
-displayConfusionMatrix :: Builder -> String -> ConfusionMatrix -> IO ()
+-- | Displays a confusion matrix. Uses the 'Builder' object to extract the labels
+-- with a given prefix. The prefix is assumed to be absent for the labels of the training
+-- matrix, and be "val" for the labels of the validation matrix.
+displayConfusionMatrix :: Builder
+                       -> String -- ^ a prefix for labels
+                       -> ConfusionMatrix
+                       -> IO ()
 displayConfusionMatrix builder suffix matrix = do
   (getCorrectLabel "truePositives") >>= \l -> labelSetText l (show $ truePositives matrix)
   (getCorrectLabel "trueNegatives") >>= \l -> labelSetText l (show $ trueNegatives matrix)
@@ -91,17 +102,21 @@ displayConfusionMatrix builder suffix matrix = do
     where
       getCorrectLabel baseName = builderGetObject builder castToLabel (baseName ++ suffix)
 
+-- | Remove any plots currently present in the UI
 clearPlots :: GUI -> IO ()
 clearPlots gui = do
   [child] <- containerGetChildren $ plotArea gui
   widgetDestroy child
 
+-- | Should be called when the plots either couldn't be constrcuted or
+-- the user choose not to generate them.
 noPlots :: GUI -> IO ()
 noPlots gui = do
   label <- labelNew $ Just "Plots disabled"
   scrolledWindowAddWithViewport (plotArea gui) label
   widgetShowAll $ plotArea gui
 
+-- | Plot a network and place it in container specified by 'plotArea'
 generatePlots :: GUI -> Network -> IO ()
 generatePlots gui network = do
   (classMap, trainingSet) <- readTrainingSet gui
@@ -113,12 +128,17 @@ generatePlots gui network = do
       widgetShowAll $ plotArea gui
 
 
+-- | Display plots if the user ticked the box, and clear the plot area
+-- otherwise
 displayPlots :: GUI -> Network -> IO ()
 displayPlots gui network = do
   buttonState <- toggleButtonGetActive $ visualisationFlag gui
   clearPlots gui
   if buttonState then generatePlots gui network else noPlots gui
 
+-- | The main function, executed every time a new data set is loaded or the
+-- user clicks the 're-generate' button. Trains the network, displays the confusion
+-- matrix and the plots, if user chose to generate them.
 evaluateNetwork :: GUI -> IO ()
 evaluateNetwork gui = do
   (tm, vm, network) <- trainNetwork gui
@@ -132,6 +152,8 @@ evaluateNetwork gui = do
 
   (displayPerceptronCount gui) network
 
+-- | Presents the user with a file chooser dialogue. If a file is picked, it is set
+-- as the data source.
 chooseDataset :: GUI -> IO ()
 chooseDataset gui = do
   fcd <- fileChooserDialogNew (Just "Choose a data set") (Just $ rootWindow gui) FileChooserActionOpen
@@ -151,6 +173,8 @@ chooseDataset gui = do
   return ()
 
 
+-- | A function to print a message to the "console" inside the GUI.
+-- The 'TextView' provided should be the "console" window.
 putStrLnToTextView :: TextView -> String -> IO ()
 putStrLnToTextView consoleTextView text = do
   buffer <- textViewGetBuffer consoleTextView
@@ -158,16 +182,21 @@ putStrLnToTextView consoleTextView text = do
   iter <- textBufferGetIterAtMark buffer mark
   textBufferInsert buffer iter (text ++ "\n")
 
+-- | A function to print the textual representation of the network
+-- not the 'TextView' provided.
 displayNetworkToTextView :: TextView -> Network -> IO ()
 displayNetworkToTextView textView network = do
   buffer <- textViewGetBuffer textView
   textBufferSetText buffer (show network)
 
+-- | Sets the supplied 'Label' to the number representing
+-- the number of perceptrons in the network
 displayPCountToLabel :: Label -> Network -> IO ()
 displayPCountToLabel label network = do
   let pCount = countPerceptrons network
   labelSetText label (show pCount)
 
+-- | Prepare a 'GUI' object based on the XML file provided
 prepareGui :: FilePath -> IO GUI
 prepareGui builderPath = do
   -- Create a variable to store the path to the data set later on
