@@ -3,11 +3,8 @@ import Test.QuickCheck
 import Test.QuickCheck.Property as P
 import Types
 import Networks
-import Training.Version10
+import Training
 import InitialSeparators
-
--- Generating a random data set
--- The datasets are "sized" based on dimentionaity
 
 twoPoints :: Int -> Gen TrainingSet
 twoPoints n = do
@@ -47,24 +44,13 @@ prop_PerceptronEquivalence = forAll (vectorOf 5 arbitrary) $ \(p :: [Double]) ->
                               (runNetwork net p) == (Networks.classify p (perceptronNetwork net))) (createNetwork noSeparator ts)
 
 -- Basic property of separating hyperplanes:
-
 -- A separating hyperplane built to separate vectors u and v will always classify u and v correctly:
-
-propHyperplaneBasic v = not (null v) ==> forAll (vectorOf (length v) arbitrary) $ \(u :: [Double]) ->
+prop_HyperplaneBasic v = not (null v) ==> forAll (vectorOf (length v) arbitrary) $ \(u :: [Double]) ->
                         forAll (choose (1,99)) $ \(c :: Int) ->
                         (runNetwork (hyperplane v u ((fromIntegral c)/100)) v) == 1.0
                         && (runNetwork (hyperplane v u ((fromIntegral c)/100)) u) == (-1.0)
 
-
--- Generating random networks to prove their properties
-
-
--- prop_perceptron_equiv =   forAll (vectorOf 5 arbitrary) $ \(a :: [Double]) ->
---                           forAll (vectorOf (length a) arbitrary) $ \(b :: [Double]) ->
---                           forAll (vectorOf (length a) arbitrary) $ \(x :: [Double]) ->
---                           (runNetwork (hyperplane a b 0.5) x) == (applyPerceptron x (generatePerceptron (hyperplane a b 0.5)))
-
-main = quickCheck propHyperplaneBasic
+main = quickCheck prop_HyperplaneBasic
        >> quickCheck ((forAll $ mPoints 50 5) prop_PerfectTraining)
        >> quickCheck prop_PerceptronEquivalence
        
