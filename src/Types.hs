@@ -38,15 +38,6 @@ type TrainingInput = (Input, Classification)
 -- | A 'TrainingSet' can be used during either construction or validation.
 type TrainingSet = [TrainingInput]
 
--- | 'PairedInputs' represent pairs of +1 and -1 points that will be used during network construction to construct separating
--- hyperplanes. It is a list of lists, with each list being a list of -1 points paired to a specific +1 point.
--- Used in the early algorithm versions.
-type PairedInputs = [[(TrainingInput, TrainingInput)]]
-
--- | A function that determined the order in which the points will be compared.
-type PairFunction = [TrainingInput] -> [TrainingInput] -> PairedInputs
-
-
 -- | A simple mapping from 'String's to 'Double's,
 -- produced when parsing, converting the 'String' classes to +1.0 or -1.0
 type ClassMap = [(String, Double)] 
