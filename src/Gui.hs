@@ -1,3 +1,14 @@
+{- |
+Module      : $Header$
+Description : A module defining the graphical user interface
+Copyright   : (c) Denis Torgunov, 2015-2016
+License     : MIT
+
+Maintainer  : dtorgunov@leafonthewind.net
+Stability   : experimental
+Portability : portable (depends on Gtk2Hs)
+
+-}
 module Gui
     (
      prepareGui

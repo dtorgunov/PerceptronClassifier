@@ -2,7 +2,7 @@
 Module      : $Header$
 Description : A module for constructing a simple separator that is used as the starting point for the overall network construction
 Copyright   : (c) Denis Torgunov, 2015-2016
-License     : No license
+License     : MIT
 
 Maintainer  : dtorgunov@leafonthewind.net
 Stability   : experimental

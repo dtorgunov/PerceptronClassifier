@@ -2,7 +2,7 @@
 Module      : $Header$
 Description : Generating plots
 Copyright   : (c) Denis Torgunov, 2015-2016
-License     : No license
+License     : MIT
 
 Maintainer  : dtorgunov@leafonthewind.net
 Stability   : experimental

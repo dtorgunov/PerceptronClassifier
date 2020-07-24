@@ -2,7 +2,7 @@
 Module      : $Header$
 Description : Types common to most modules in the project
 Copyright   : (c) Denis Torgunov, 2015-2016
-License     : No license
+License     : MIT
 
 Maintainer  : dtorgunov@leafonthewind.net
 Stability   : experimental
