@@ -16,6 +16,15 @@ data-dir: src
 executable NeuralNetworks
   main-is:             Main.hs
   other-modules:     Paths_NeuralNetworks
+                   , ConfusionMatrix
+                   , Gui
+                   , InitialSeparators
+                   , Networks
+                   , Parsing
+                   , Plotting
+                   , Training
+                   , Types
+                   , Validation
   build-depends:     QuickCheck
                    , base
                    , containers >= 0.5.6.2

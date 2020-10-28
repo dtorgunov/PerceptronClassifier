@@ -9,3 +9,15 @@ A simple graphical user interface is provided, to show how the separating hyperp
 Most of the data included in this repository has been provided by the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/index.php).
 
 ![Spiral Dataset](extra/spiralData.png) ![Spiral Dataset, Classified](extra/spiralBasic.png)
+
+## Building
+
+The application can be built and ran with [Stack](https://docs.haskellstack.org/en/stable/README/), be invoking
+
+```
+stack setup
+stack build
+stack run
+```
+
+Lack of header files for certain C libraries (gtk2, cairo, pango, glib) could trigger a stack build failure. Install libraries using the most appropriate method for your distribution and try again if that is the case.
